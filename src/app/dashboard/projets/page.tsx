@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import Badge from "@/components/ui/Badge";
 import { Eye, FileText, Plus } from "lucide-react";
@@ -12,12 +13,13 @@ function getBadgeStatus(statut: string): "actif" | "en_cours" | "livre" | "erreu
 }
 
 export default async function ProjetsPage({ searchParams }: { searchParams: Promise<{ statut?: string; type?: string }> }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
+  const h = await headers();
+  const userId = h.get("x-user-id");
+  if (!userId) redirect("/auth/login");
 
+  const supabase = await createClient();
   const params = await searchParams;
-  let query = supabase.from("projets").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+  let query = supabase.from("projets").select("*").eq("user_id", userId).order("created_at", { ascending: false });
   if (params.statut) query = query.eq("statut", params.statut);
   if (params.type) query = query.eq("type_analyse", params.type);
   const { data: projets } = await query;

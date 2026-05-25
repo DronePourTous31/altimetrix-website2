@@ -1,16 +1,18 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { Shield, Users, FolderOpen, BarChart3 } from "lucide-react";
 
 export default async function AdminPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
+  const h = await headers();
+  const userId = h.get("x-user-id");
+  if (!userId) redirect("/auth/login");
 
+  const supabase = await createClient();
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
-    .eq("id", user.id)
+    .eq("id", userId)
     .single();
 
   if (profile?.role !== "admin") {

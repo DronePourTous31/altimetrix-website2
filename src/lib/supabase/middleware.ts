@@ -22,5 +22,16 @@ export async function updateSession(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-  return { supabase, supabaseResponse, user };
+
+  let profile = null;
+  if (user) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("prenom, nom, abonnement_actif, type_compte, role")
+      .eq("id", user.id)
+      .single();
+    profile = data;
+  }
+
+  return { supabase, supabaseResponse, user, profile };
 }
