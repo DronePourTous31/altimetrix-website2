@@ -6,6 +6,7 @@ const publicPaths = [
   "/about", "/contact",
   "/auth/login", "/auth/register", "/auth/callback",
   "/legal/mentions", "/legal/rgpd", "/legal/cgv",
+  "/api",
 ];
 
 export async function middleware(request: NextRequest) {
