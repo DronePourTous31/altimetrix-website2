@@ -1,0 +1,4 @@
+Login: faures.nicolas@orange.fr
+Pwd: Lemonde01?*
+
+Supabase Projet AltiMetrix Database password: kz1aIoWM5R9fOeZL
