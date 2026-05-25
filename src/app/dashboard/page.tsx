@@ -16,7 +16,8 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
 
-  const bypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true";
+  const bypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true" ||
+    !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
   const { data: profile } = await supabase
     .from("profiles")

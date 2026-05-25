@@ -9,7 +9,8 @@ export default async function DashboardMissionPlannerPage({ searchParams }: { se
   if (!user) redirect("/auth/login");
 
   const params = await searchParams;
-  const bypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true" || params.dev === "1";
+  const bypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true" || params.dev === "1" ||
+    !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
   const { data: profile } = await supabase
     .from("profiles")

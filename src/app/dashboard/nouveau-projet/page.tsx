@@ -78,7 +78,7 @@ export default function NouveauProjetPage() {
         formData.append("file", cf.file);
         formData.append("projetId", projet.id);
         formData.append("category", cf.category);
-        formData.append("clientName", `${profile?.prenom || ""}_${profile?.nom || ""}`);
+        formData.append("clientName", `${(profile?.prenom || "").toUpperCase()}_${(profile?.nom || "").toUpperCase()}`);
         formData.append("projectName", nom);
 
         await fetch("/api/upload", {
@@ -94,7 +94,8 @@ export default function NouveauProjetPage() {
     setUploading(false);
 
     const isBypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true" ||
-      (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("dev") === "1");
+      (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("dev") === "1") ||
+      !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
     if (profile?.abonnement_actif || isBypass) {
       if (isBypass) {

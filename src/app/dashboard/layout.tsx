@@ -15,7 +15,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .eq("id", user.id)
     .single();
 
-  const bypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true";
+  const bypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true" ||
+    !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
   const prenom = profile?.prenom || "Utilisateur";
   const nom = profile?.nom || "";
   const abonnementActif = bypass || profile?.abonnement_actif || false;
