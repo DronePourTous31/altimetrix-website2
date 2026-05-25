@@ -31,7 +31,20 @@ export async function uploadToR2(
     throw new Error("R2 non configuré : clés manquantes");
   }
 
-  await r2Client.putObject(R2_BUCKET_NAME, key, buffer, buffer.length, {
-    "Content-Type": contentType,
+  const presignedUrl = await r2Client.presignedPutObject(
+    R2_BUCKET_NAME,
+    key,
+    3600,
+  );
+
+  const res = await fetch(presignedUrl, {
+    method: "PUT",
+    body: new Uint8Array(buffer),
+    headers: { "Content-Type": contentType },
   });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`R2 upload failed (${res.status}): ${text}`);
+  }
 }
