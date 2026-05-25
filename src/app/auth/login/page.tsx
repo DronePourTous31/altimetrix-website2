@@ -1,13 +1,12 @@
 "use client";
 
 import { Suspense, useState, FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Eye, EyeOff, Loader2, AlertCircle, Mail, Lock } from "lucide-react";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/dashboard";
   const [email, setEmail] = useState("");
@@ -34,8 +33,7 @@ function LoginForm() {
       return;
     }
 
-    router.push(redirect);
-    router.refresh();
+    window.location.href = redirect;
   };
 
   return (
