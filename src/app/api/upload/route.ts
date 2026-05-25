@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     ? "image/x-adobe-dng"
     : `image/${path.extname(filename).slice(1)}`;
 
-  // Toujours uploader vers R2 si configuré
+  // Upload vers R2 si configuré
   const r2Configured = !!(process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY && process.env.R2_SECRET_KEY);
   if (r2Configured) {
     try {
@@ -36,12 +36,12 @@ export async function POST(req: Request) {
       await supabase.from("projets").update({ storage_path_input: storagePath }).eq("id", projetId);
       return NextResponse.json({ success: true, filename, size: buffer.length, type: fileType, storage: "r2" });
     } catch (err) {
-      console.error("R2 upload error:", err);
+      console.error("R2 upload error:", err instanceof Error ? err.message : err);
       return NextResponse.json({ error: "Erreur upload R2" }, { status: 500 });
     }
   }
 
-  // Fallback local (développement sans R2)
+  // Fallback local
   const dir = path.join(CLIENTS_ROOT, clientName, projectName, "PHOTOS", fileType);
   const filepath = path.join(dir, filename);
   try {
