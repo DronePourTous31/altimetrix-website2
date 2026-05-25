@@ -36,22 +36,27 @@ export async function POST(req: Request) {
       await supabase.from("projets").update({ storage_path_input: storagePath }).eq("id", projetId);
       return NextResponse.json({ success: true, filename, size: buffer.length, type: fileType, storage: "r2" });
     } catch (err) {
-      console.error("R2 upload error:", err instanceof Error ? err.message : err);
-      return NextResponse.json({ error: "Erreur upload R2" }, { status: 500 });
+      const msg = err instanceof Error ? `${err.name}: ${err.message}\n${err.stack}` : String(err);
+      console.error("R2 upload error:", msg);
+      return NextResponse.json({ error: "Erreur upload R2", detail: msg }, { status: 500 });
     }
   }
 
-  // Fallback local
-  const dir = path.join(CLIENTS_ROOT, clientName, projectName, "PHOTOS", fileType);
-  const filepath = path.join(dir, filename);
-  try {
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(filepath, buffer);
-    const projetRoot = path.join(CLIENTS_ROOT, clientName, projectName);
-    await supabase.from("projets").update({ storage_path_input: projetRoot }).eq("id", projetId);
-    return NextResponse.json({ success: true, filename, size: buffer.length, type: fileType, storage: "local" });
-  } catch (err) {
-    console.error("Upload error:", err);
-    return NextResponse.json({ error: "Erreur écriture fichier" }, { status: 500 });
+  // Fallback local (uniquement si le répertoire existe — typiquement en dev)
+  if (fs.existsSync(CLIENTS_ROOT)) {
+    const dir = path.join(CLIENTS_ROOT, clientName, projectName, "PHOTOS", fileType);
+    const filepath = path.join(dir, filename);
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(filepath, buffer);
+      const projetRoot = path.join(CLIENTS_ROOT, clientName, projectName);
+      await supabase.from("projets").update({ storage_path_input: projetRoot }).eq("id", projetId);
+      return NextResponse.json({ success: true, filename, size: buffer.length, type: fileType, storage: "local" });
+    } catch (err) {
+      console.error("Upload error:", err);
+      return NextResponse.json({ error: "Erreur écriture fichier" }, { status: 500 });
+    }
   }
+
+  return NextResponse.json({ error: "Aucun stockage configuré (R2 ou local)" }, { status: 500 });
 }
