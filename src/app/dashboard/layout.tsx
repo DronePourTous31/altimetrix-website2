@@ -6,8 +6,9 @@ import { LogOut, Menu } from "lucide-react";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) redirect("/auth/login");
+  const user = session.user;
 
   const { data: profile } = await supabase
     .from("profiles")

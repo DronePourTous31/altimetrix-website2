@@ -13,8 +13,9 @@ function getBadgeStatus(statut: string): "actif" | "en_cours" | "livre" | "erreu
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) redirect("/auth/login");
+  const user = session.user;
 
   const bypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true" ||
     !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
