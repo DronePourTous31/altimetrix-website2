@@ -7,9 +7,10 @@ export async function GET(request: Request) {
   const next = searchParams.get("next") ?? "/dashboard";
 
   if (code) {
-    const supabase = await createClient();
+    const response = NextResponse.redirect(`${origin}${next}`);
+    const supabase = await createClient(response);
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(`${origin}${next}`);
+    if (!error) return response;
   }
 
   return NextResponse.redirect(`${origin}/auth/login?error=auth_code_error`);
