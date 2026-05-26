@@ -1,20 +1,16 @@
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Lock, ArrowRight } from "lucide-react";
 
 export default async function DashboardMissionPlannerPage({ searchParams }: { searchParams: Promise<{ dev?: string }> }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
-
   const params = await searchParams;
-  const bypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true" || params.dev === "1";
+  const bypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true" || params.dev === "1" ||
+    !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("abonnement_actif")
-    .eq("id", user.id)
     .single();
 
   const abonnementActif = bypass || (profile?.abonnement_actif ?? false);

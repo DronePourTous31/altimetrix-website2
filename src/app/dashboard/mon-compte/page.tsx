@@ -1,17 +1,13 @@
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { User, CreditCard, History, ArrowRight } from "lucide-react";
 
 export default async function MonComptePage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("prenom, nom, type_compte, siret, telephone, created_at, abonnement_actif, forfait_id, essais_gratuits_restants")
-    .eq("id", user.id)
     .single();
 
   const { data: forfait } = profile?.forfait_id
@@ -21,7 +17,6 @@ export default async function MonComptePage() {
   const { data: commandes } = await supabase
     .from("commandes")
     .select("*")
-    .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(10);
 
