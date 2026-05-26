@@ -41,7 +41,7 @@ export default async function MonComptePage() {
             </div>
             <div>
               <p className="text-gray-500 text-xs">Email</p>
-              <p className="font-medium mt-0.5">{user.email}</p>
+              <p className="font-medium mt-0.5">-</p>
             </div>
             <div>
               <p className="text-gray-500 text-xs">Type de compte</p>
