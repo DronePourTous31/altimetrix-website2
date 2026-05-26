@@ -48,27 +48,21 @@ export default function NouveauProjetPage() {
     setError("");
     setLoading(true);
 
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { router.push("/auth/login"); return; }
+    const res = await fetch("/api/create-projet", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nom, adresse, typeAnalyse }),
+    });
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("prenom, nom, abonnement_actif, forfait_id, essais_gratuits_restants")
-      .eq("id", user.id)
-      .single();
-
-    const { data: projet, error: insertError } = await supabase
-      .from("projets")
-      .insert({ user_id: user.id, nom, adresse: adresse || null, type_analyse: typeAnalyse, statut: "upload_en_attente" })
-      .select()
-      .single();
-
-    if (insertError || !projet) {
+    if (!res.ok) {
+      if (res.status === 401) { router.push("/auth/login"); return; }
       setError("Erreur lors de la création du projet. Réessayez.");
       setLoading(false);
       return;
     }
+
+    const { projet, clientName: apiClientName, profile } = await res.json();
+    const clientName = apiClientName;
 
     setUploading(true);
     let uploaded = 0;
@@ -93,24 +87,13 @@ export default function NouveauProjetPage() {
     }
     setUploading(false);
 
-    const isBypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true" ||
-      (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("dev") === "1");
+    const { redirect } = await fetch("/api/finaliser-projet", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projetId: projet.id }),
+    }).then(r => r.json());
 
-    if (profile?.abonnement_actif || isBypass) {
-      if (isBypass) {
-        await supabase.from("projets").update({ statut: "en_traitement" }).eq("id", projet.id);
-      }
-      router.push(`/dashboard/projets/${projet.id}`);
-      router.refresh();
-    } else if ((profile?.essais_gratuits_restants ?? 0) > 0) {
-      await supabase.from("profiles").update({ essais_gratuits_restants: (profile?.essais_gratuits_restants ?? 0) - 1 }).eq("id", user.id);
-      await supabase.from("projets").update({ statut: "en_traitement" }).eq("id", projet.id);
-      router.push(`/dashboard/projets/${projet.id}`);
-      router.refresh();
-    } else {
-      window.location.href = `/api/checkout?projet_id=${projet.id}&montant=25000`;
-    }
-
+    window.location.href = redirect;
     setLoading(false);
   };
 
