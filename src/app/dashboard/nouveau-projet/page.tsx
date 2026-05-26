@@ -86,7 +86,7 @@ export default function NouveauProjetPage() {
 
   const canGoNext = () => {
     if (step === 1) return nom.trim().length > 0 && profileLoaded;
-    if (step === 2) return totalFiles >= 30;
+    if (step === 2) return profileLoaded;
     return true;
   };
 
