@@ -48,9 +48,16 @@ export default function NouveauProjetPage() {
     setError("");
     setLoading(true);
 
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (session?.access_token) {
+      headers["Authorization"] = `Bearer ${session.access_token}`;
+    }
+
     const res = await fetch("/api/create-projet", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ nom, adresse, typeAnalyse }),
     });
 
