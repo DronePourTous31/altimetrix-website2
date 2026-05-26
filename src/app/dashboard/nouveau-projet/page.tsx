@@ -63,10 +63,14 @@ export default function NouveauProjetPage() {
 
     if (!res.ok) {
       if (res.status === 401) {
-        setError(`Session: ${session ? "trouvée" : "NULLE"} | Token: ${session?.access_token ? "OK" : "MANQUANT"} | Tu dois être connecté pour créer un projet.`);
+        setError(`Session: ${session ? "trouvée" : "NULLE"} | Token: ${session?.access_token ? "OK" : "MANQUANT"}`);
         setLoading(false);
         return;
       }
+      setError("Erreur lors de la création du projet. Réessayez.");
+      setLoading(false);
+      return;
+    }
 
     const { projet, clientName: apiClientName, profile } = await res.json();
     const clientName = apiClientName;
@@ -82,8 +86,13 @@ export default function NouveauProjetPage() {
         formData.append("clientName", `${profile?.prenom || ""}_${profile?.nom || ""}`);
         formData.append("projectName", nom);
 
+        const uploadHeaders: Record<string, string> = {};
+        if (session?.access_token) {
+          uploadHeaders["Authorization"] = `Bearer ${session.access_token}`;
+        }
         await fetch("/api/upload", {
           method: "POST",
+          headers: uploadHeaders,
           body: formData,
         });
       } catch (err) {
@@ -96,7 +105,7 @@ export default function NouveauProjetPage() {
 
     const { redirect } = await fetch("/api/finaliser-projet", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ projetId: projet.id }),
     }).then(r => r.json());
 
