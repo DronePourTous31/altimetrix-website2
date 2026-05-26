@@ -62,11 +62,11 @@ export default function NouveauProjetPage() {
     });
 
     if (!res.ok) {
-      if (res.status === 401) { router.push("/auth/login"); return; }
-      setError("Erreur lors de la création du projet. Réessayez.");
-      setLoading(false);
-      return;
-    }
+      if (res.status === 401) {
+        setError(`Session: ${session ? "trouvée" : "NULLE"} | Token: ${session?.access_token ? "OK" : "MANQUANT"} | Tu dois être connecté pour créer un projet.`);
+        setLoading(false);
+        return;
+      }
 
     const { projet, clientName: apiClientName, profile } = await res.json();
     const clientName = apiClientName;
