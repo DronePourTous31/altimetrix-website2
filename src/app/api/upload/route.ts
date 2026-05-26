@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
 import { uploadToR2, r2Key } from "@/lib/r2";
 import fs from "fs";
 import path from "path";
@@ -7,8 +7,7 @@ import path from "path";
 const CLIENTS_ROOT = "F:\\DRONE\\ALTIMETRIX\\CLIENTS";
 
 export async function POST(req: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { user, supabase } = await getAuthenticatedUser(req);
   if (!user) return NextResponse.json({ error: "Non authé" }, { status: 401 });
 
   const projetId = req.headers.get("x-projet-id");

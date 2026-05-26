@@ -36,6 +36,15 @@ export default function NouveauProjetPage() {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
+  async function getAuthHeaders() {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return { headers, token, supabase };
+  }
+
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -86,7 +95,7 @@ export default function NouveauProjetPage() {
     setError("");
     setLoading(true);
 
-    const supabase = createClient();
+    const { headers: authHeaders, supabase } = await getAuthHeaders();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push("/auth/login"); return; }
 
@@ -99,27 +108,24 @@ export default function NouveauProjetPage() {
       if (prof) setProfile(prof);
     }
 
-    const { data: projet, error: insertError } = await supabase
-      .from("projets")
-      .insert({
-        user_id: user.id,
-        nom,
-        adresse: adresse || null,
-        type_analyse: typeAnalyse,
-        statut: "upload_en_attente",
-      })
-      .select()
-      .single();
+    const res = await fetch("/api/create-projet", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify({ nom, adresse: adresse || null, type_analyse: typeAnalyse, notes }),
+    });
 
-    if (insertError || !projet) {
-      setError("Erreur lors de la création du projet. Réessayez.");
+    if (!res.ok) {
+      const err = await res.json();
+      setError(err.error || "Erreur lors de la création du projet. Réessayez.");
       setLoading(false);
       return;
     }
 
-    setProjetId(projet.id);
+    const { projet_id } = await res.json();
 
-    const cn = clientName || (profile ? `${profile.prenom.toUpperCase()}_${profile.nom.toUpperCase()}` : "CLIENT");
+    setProjetId(projet_id);
+
+    const cn = clientName || "CLIENT";
     const pn = nom.replace(/[<>:"/\\|?*]/g, "_").trim();
 
     // Upload photos vers CLIENTS/{client}/{projet}/PHOTOS/{type}/
@@ -138,7 +144,8 @@ export default function NouveauProjetPage() {
         await fetch("/api/upload", {
           method: "POST",
           headers: {
-            "x-projet-id": projet.id,
+            ...authHeaders,
+            "x-projet-id": projet_id,
             "x-filename": file.name,
             "x-type": type,
             "x-client-name": cn,
@@ -160,9 +167,9 @@ export default function NouveauProjetPage() {
 
     if (prof?.abonnement_actif || isBypass) {
       if (isBypass) {
-        await supabase.from("projets").update({ statut: "en_traitement" }).eq("id", projet.id);
+        await supabase.from("projets").update({ statut: "en_traitement" }).eq("id", projet_id);
       }
-      router.push(`/dashboard/projets/${projet.id}`);
+      router.push(`/dashboard/projets/${projet_id}`);
       router.refresh();
     } else if ((prof?.essais_gratuits_restants ?? 0) > 0) {
       await supabase
@@ -172,12 +179,12 @@ export default function NouveauProjetPage() {
       await supabase
         .from("projets")
         .update({ statut: "en_traitement" })
-        .eq("id", projet.id);
-      router.push(`/dashboard/projets/${projet.id}`);
+        .eq("id", projet_id);
+      router.push(`/dashboard/projets/${projet_id}`);
       router.refresh();
     } else {
-      setCheckoutUrl(`/api/checkout?projet_id=${projet.id}&montant=25000`);
-      window.location.href = `/api/checkout?projet_id=${projet.id}&montant=25000`;
+      setCheckoutUrl(`/api/checkout?projet_id=${projet_id}&montant=25000`);
+      window.location.href = `/api/checkout?projet_id=${projet_id}&montant=25000`;
     }
 
     setLoading(false);
