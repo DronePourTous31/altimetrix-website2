@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, FormEvent, useEffect } from "react";
+import { useState, useCallback, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -36,15 +36,6 @@ export default function NouveauProjetPage() {
   const [notes, setNotes] = useState("");
 
   const [files, setFiles] = useState<CategorizedFile[]>([]);
-  const [profileLoaded, setProfileLoaded] = useState(false);
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) { router.push("/auth/login"); return; }
-      setProfileLoaded(true);
-    });
-  }, [router]);
 
   const canGoNext = () => {
     if (step === 1) return nom.trim().length > 0;
@@ -144,13 +135,6 @@ export default function NouveauProjetPage() {
 
       <h1 className="text-2xl font-bold mb-8">Nouveau projet</h1>
 
-      {!profileLoaded && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-anthracite-800/30 border border-anthracite-700 mb-6">
-          <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
-          <p className="text-sm text-gray-400">Chargement de votre profil...</p>
-        </div>
-      )}
-
       {error && (
         <div className="flex items-start gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20 mb-6">
           <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
@@ -243,7 +227,7 @@ export default function NouveauProjetPage() {
                 className="inline-flex items-center gap-2 px-6 py-3 border border-anthracite-700 text-gray-300 rounded-xl hover:border-anthracite-600 transition-all">
                 <ArrowLeft className="w-4 h-4" /> Retour
               </button>
-              <button type="submit" disabled={loading || uploading || !profileLoaded}
+              <button type="submit" disabled={loading || uploading}
                 className="inline-flex items-center gap-2 px-8 py-3 gradient-cyan text-white font-semibold rounded-xl hover:opacity-90 transition-all disabled:opacity-50 shadow-lg shadow-cyan-500/25">
                 {loading || uploading ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> {uploading ? `Upload ${uploadProgress}%` : "Création..."}</>
