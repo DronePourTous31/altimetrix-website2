@@ -49,9 +49,8 @@ export default function NouveauProjetPage() {
     setLoading(true);
 
     const supabase = createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
-    if (!user) { setError("Session expirée. Rechargez la page."); setLoading(false); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { router.push("/auth/login"); return; }
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -79,7 +78,7 @@ export default function NouveauProjetPage() {
         formData.append("file", cf.file);
         formData.append("projetId", projet.id);
         formData.append("category", cf.category);
-        formData.append("clientName", `${(profile?.prenom || "").toUpperCase()}_${(profile?.nom || "").toUpperCase()}`);
+        formData.append("clientName", `${profile?.prenom || ""}_${profile?.nom || ""}`);
         formData.append("projectName", nom);
 
         await fetch("/api/upload", {
@@ -95,8 +94,7 @@ export default function NouveauProjetPage() {
     setUploading(false);
 
     const isBypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true" ||
-      (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("dev") === "1") ||
-      !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+      (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("dev") === "1");
 
     if (profile?.abonnement_actif || isBypass) {
       if (isBypass) {

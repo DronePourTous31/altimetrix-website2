@@ -1,20 +1,17 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { User, CreditCard, History, ArrowRight } from "lucide-react";
 
 export default async function MonComptePage() {
-  const h = await headers();
-  const userId = h.get("x-user-id");
-  const userEmail = h.get("x-user-email") || "";
-  if (!userId) redirect("/auth/login");
-
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/login");
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("prenom, nom, type_compte, siret, telephone, created_at, abonnement_actif, forfait_id, essais_gratuits_restants")
-    .eq("id", userId)
+    .eq("id", user.id)
     .single();
 
   const { data: forfait } = profile?.forfait_id
@@ -24,7 +21,7 @@ export default async function MonComptePage() {
   const { data: commandes } = await supabase
     .from("commandes")
     .select("*")
-    .eq("user_id", userId)
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(10);
 
@@ -49,7 +46,7 @@ export default async function MonComptePage() {
             </div>
             <div>
               <p className="text-gray-500 text-xs">Email</p>
-              <p className="font-medium mt-0.5">{userEmail}</p>
+              <p className="font-medium mt-0.5">{user.email}</p>
             </div>
             <div>
               <p className="text-gray-500 text-xs">Type de compte</p>

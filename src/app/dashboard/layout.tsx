@@ -1,27 +1,32 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
 import DashboardSidebar from "@/components/DashboardSidebar";
 import Link from "next/link";
-import { LogOut } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const h = await headers();
-  const userId = h.get("x-user-id");
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/login");
 
-  if (!userId) redirect("/auth/login");
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("prenom, nom, abonnement_actif, type_compte, role")
+    .eq("id", user.id)
+    .single();
 
-  const prenom = h.get("x-user-prenom") || "Utilisateur";
-  const nom = h.get("x-user-nom") || "";
-  const abonnementActif = h.get("x-abonnement-actif") === "true";
-  const typeCompte = h.get("x-user-type-compte") || "particulier";
-  const role = h.get("x-user-role") || "client";
+  const bypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true";
+  const prenom = profile?.prenom || "Utilisateur";
+  const nom = profile?.nom || "";
+  const abonnementActif = bypass || profile?.abonnement_actif || false;
+  const role = profile?.role || "client";
 
   return (
     <div className="min-h-screen bg-anthracite-900 flex pt-16">
       <DashboardSidebar
         prenom={prenom}
         nom={nom}
-        typeCompte={typeCompte}
+        typeCompte={profile?.type_compte || "particulier"}
         abonnementActif={abonnementActif}
         role={role}
       />
@@ -29,7 +34,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <header className="bg-anthracite-800 border-b border-anthracite-700 px-6 py-3 lg:hidden flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-white">{prenom} {nom}</p>
-            <p className="text-xs text-gray-500">{typeCompte === "artisan" ? "Artisan" : "Particulier"}</p>
+            <p className="text-xs text-gray-500">{profile?.type_compte === "artisan" ? "Artisan" : "Particulier"}</p>
           </div>
           <Link href="/auth/logout" className="text-gray-400 hover:text-red-400">
             <LogOut className="w-5 h-5" />

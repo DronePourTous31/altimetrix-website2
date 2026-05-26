@@ -1,17 +1,15 @@
 import { notFound, redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { ArrowLeft, ExternalLink, FileText, Move3d, Ruler, Sun } from "lucide-react";
 
 export default async function ProjetDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const h = await headers();
-  const userId = h.get("x-user-id");
-  if (!userId) redirect("/auth/login");
-
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/login");
+
   const { id } = await params;
-  const { data: projet } = await supabase.from("projets").select("*").eq("id", id).eq("user_id", userId).single();
+  const { data: projet } = await supabase.from("projets").select("*").eq("id", id).eq("user_id", user.id).single();
   if (!projet) notFound();
 
   const statutLabels: Record<string, string> = {

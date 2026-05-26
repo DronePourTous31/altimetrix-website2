@@ -1,11 +1,13 @@
 "use client";
 
 import { Suspense, useState, FormEvent } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 import { Eye, EyeOff, Loader2, AlertCircle, Mail, Lock } from "lucide-react";
 
 function LoginForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/dashboard";
   const [email, setEmail] = useState("");
@@ -18,32 +20,21 @@ function LoginForm() {
     e.preventDefault();
     setError("");
     setLoading(true);
+    const supabase = createClient();
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
-    try {
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, redirect }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        const messages: Record<string, string> = {
-          "Invalid login credentials": "Email ou mot de passe incorrect.",
-          "Email not confirmed": "Veuillez confirmer votre email avant de vous connecter.",
-          "Rate limit exceeded": "Trop de tentatives. Réessayez dans quelques minutes.",
-        };
-        setError(messages[data.error] || data.error || "Une erreur est survenue. Réessayez.");
-        setLoading(false);
-        return;
-      }
-
-      const data = await res.json();
-      window.location.href = data.redirect;
-    } catch {
-      setError("Erreur réseau. Réessayez.");
+    if (authError) {
+      const messages: Record<string, string> = {
+        "Invalid login credentials": "Email ou mot de passe incorrect.",
+        "Email not confirmed": "Veuillez confirmer votre email avant de vous connecter.",
+        "Rate limit exceeded": "Trop de tentatives. Réessayez dans quelques minutes.",
+      };
+      setError(messages[authError.message] || "Une erreur est survenue. Réessayez.");
       setLoading(false);
+      return;
     }
+
+    router.push(redirect);
   };
 
   return (

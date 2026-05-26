@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { Plus, AlertTriangle, Gift, FolderOpen, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import Badge from "@/components/ui/Badge";
@@ -13,18 +12,16 @@ function getBadgeStatus(statut: string): "actif" | "en_cours" | "livre" | "erreu
 }
 
 export default async function DashboardPage() {
-  const h = await headers();
-  const userId = h.get("x-user-id");
-  if (!userId) redirect("/auth/login");
-
-  const bypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true" ||
-    !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/login");
+
+  const bypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true";
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("abonnement_actif, forfait_id, essais_gratuits_restants")
-    .eq("id", userId)
+    .eq("id", user.id)
     .single();
 
   const { data: forfaitData } = profile?.forfait_id
@@ -34,14 +31,14 @@ export default async function DashboardPage() {
   const { data: projets } = await supabase
     .from("projets")
     .select("*")
-    .eq("user_id", userId)
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(5);
 
   const { count: projetsMois } = await supabase
     .from("projets")
     .select("*", { count: "exact", head: true })
-    .eq("user_id", userId)
+    .eq("user_id", user.id)
     .gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
 
   const nbMax = forfaitData?.nb_projets_mois || 3;

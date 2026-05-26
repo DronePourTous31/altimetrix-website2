@@ -18,23 +18,11 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/favicon")
   );
 
-  const { user, profile, supabaseResponse } = await updateSession(request);
-
-  if (user) {
-    request.headers.set("x-user-id", user.id);
-    request.headers.set("x-user-email", user.email || "");
-    if (profile) {
-      request.headers.set("x-user-prenom", profile.prenom || "");
-      request.headers.set("x-user-nom", profile.nom || "");
-      request.headers.set("x-user-role", profile.role || "client");
-      request.headers.set("x-abonnement-actif", profile.abonnement_actif ? "true" : "false");
-      request.headers.set("x-user-type-compte", profile.type_compte || "particulier");
-    }
-  }
-
   if (isPublic) {
-    return supabaseResponse;
+    return (await updateSession(request)).supabaseResponse;
   }
+
+  const { user, supabaseResponse } = await updateSession(request);
 
   if (!user) {
     const loginUrl = new URL("/auth/login", request.url);
