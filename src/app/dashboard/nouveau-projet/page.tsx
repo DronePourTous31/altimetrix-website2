@@ -48,11 +48,25 @@ export default function NouveauProjetPage() {
     setError("");
     setLoading(true);
 
+    // Lecture du token directement depuis document.cookie
+    const cookies = document.cookie.split("; ").reduce<Record<string, string>>((acc, c) => {
+      const [k, ...v] = c.split("=");
+      acc[k] = v.join("=");
+      return acc;
+    }, {});
+    const sbCookieName = Object.keys(cookies).find(k => k.includes("-auth-token"));
+    let token = "";
+    if (sbCookieName) {
+      try { token = JSON.parse(atob(cookies[sbCookieName]))?.access_token || ""; } catch {}
+    }
+
     const supabase = createClient();
     const { data: { session } } = await supabase.auth.getSession();
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (session?.access_token) {
       headers["Authorization"] = `Bearer ${session.access_token}`;
+    } else if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
     const res = await fetch("/api/create-projet", {
@@ -62,11 +76,7 @@ export default function NouveauProjetPage() {
     });
 
     if (!res.ok) {
-      if (res.status === 401) {
-        setError(`Session: ${session ? "trouvée" : "NULLE"} | Token: ${session?.access_token ? "OK" : "MANQUANT"}`);
-        setLoading(false);
-        return;
-      }
+      if (res.status === 401) { router.push("/auth/login"); return; }
       setError("Erreur lors de la création du projet. Réessayez.");
       setLoading(false);
       return;
