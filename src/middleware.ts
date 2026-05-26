@@ -22,17 +22,12 @@ export async function middleware(request: NextRequest) {
     return (await updateSession(request)).supabaseResponse;
   }
 
-  const { supabaseResponse, user } = await updateSession(request);
+  const { user, supabaseResponse } = await updateSession(request);
 
-  const isRscOrPrefetch =
-    request.headers.get("RSC") === "1" ||
-    request.headers.get("Next-Router-Prefetch") === "1";
-
-  if (!user && !isRscOrPrefetch) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/auth/login";
-    url.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(url);
+  if (!user) {
+    const loginUrl = new URL("/auth/login", request.url);
+    loginUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   return supabaseResponse;
