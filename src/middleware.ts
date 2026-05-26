@@ -14,8 +14,8 @@ export async function middleware(request: NextRequest) {
 
   const isPublic = publicPaths.some(
     (p) => pathname === p || pathname.startsWith(p + "/") ||
-      pathname.startsWith("/_next") || pathname.startsWith("/images") ||
-      pathname.startsWith("/favicon")
+      pathname.startsWith("/_next") || pathname.startsWith("/_rsc") ||
+      pathname.startsWith("/images") || pathname.startsWith("/favicon")
   );
 
   if (isPublic) {
@@ -35,6 +35,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|_rsc|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
