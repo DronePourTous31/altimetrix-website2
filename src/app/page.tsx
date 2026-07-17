@@ -173,18 +173,22 @@ export default function HomePage() {
             <div className="relative hidden lg:block">
               <div className="relative w-full aspect-square">
                 <div className="absolute inset-0 gradient-cyan rounded-3xl opacity-20 blur-2xl" />
-                <div className="relative w-full h-full bg-gradient-to-br from-anthracite-800 to-anthracite-900 rounded-3xl border border-anthracite-700 p-8 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-20 h-20 mx-auto mb-6 gradient-cyan rounded-2xl flex items-center justify-center animate-float">
-                      <Move3d className="w-10 h-10 text-white" />
-                    </div>
-                    <p className="text-2xl font-bold mb-2">Modèle 3D Interactif</p>
-                    <p className="text-gray-400 mb-6">Tournez, zoomez, mesurez</p>
+                <div className="relative w-full h-full bg-anthracite-900 rounded-3xl border border-anthracite-700 overflow-hidden">
+                  <video
+                    src="https://pub-0459c8bf6e9348e592f4decd8b6bab91.r2.dev/altimetrix/shared/videos/Maison_Occitanie_Horizontal.mp4"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-white/90 drop-shadow-md">Maison Occitanie — Vue aérienne</p>
                     <Link
                       href="/demo"
-                      className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors"
+                      className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors drop-shadow-md"
                     >
-                      Essayer la démo <ChevronRight className="w-4 h-4" />
+                      Démo <ChevronRight className="w-3 h-3" />
                     </Link>
                   </div>
                 </div>
