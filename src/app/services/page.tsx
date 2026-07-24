@@ -7,6 +7,7 @@ import {
   ArrowRight, Camera, Maximize2,
 } from "lucide-react";
 
+
 const R2 = "https://pub-0459c8bf6e9348e592f4decd8b6bab91.r2.dev/altimetrix";
 const R2V = `${R2}/shared/videos`;
 const R2R = `${R2}/shared/reports`;
@@ -211,45 +212,43 @@ function Model3DViewer() {
   const resetDsm = () => { setDsZoom(1.5); setDsPanX(0); setDsPanY(0); };
 
   useEffect(() => {
-    if (!document.querySelector('script[src*="model-viewer.min.js"]')) {
-      const s = document.createElement("script");
-      s.src = "https://ajax.googleapis.com/ajax/libs/model-viewer/4.3.1/model-viewer.min.js";
-      document.head.appendChild(s);
+    if (!customElements.get("model-viewer")) {
+      import("@google/model-viewer").catch(() => {
+        if (!document.querySelector('script[src*="model-viewer.min.js"]')) {
+          const s = document.createElement("script");
+          s.src = "https://ajax.googleapis.com/ajax/libs/model-viewer/4.3.1/model-viewer.min.js";
+          document.head.appendChild(s);
+        }
+      });
     }
   }, []);
 
   useEffect(() => {
     if (cur?.type !== "glb") { mvRef.current = null; return; }
     const el = outerRef.current; if (!el) return;
-    let cancelled = false;
+    const isMobile = window.innerWidth < 768;
     loadedRef.current = false;
-    const init = () => {
-      if (cancelled) return;
-      const isMobile = window.innerWidth < 768;
-      const mv = document.createElement("model-viewer") as any;
-      mv.setAttribute("src", cur.url);
-      mv.setAttribute("camera-controls", "");
-      mv.setAttribute("auto-rotate", "");
-      mv.setAttribute("exposure", "0.8");
-      mv.setAttribute("interaction-prompt", "none");
-      mv.setAttribute("min-camera-orbit", "auto auto 0.5m");
-      mv.setAttribute("shadow-intensity", isMobile ? "0" : "0.2");
-      mv.style.width = "100%"; mv.style.height = "100%"; mv.style.background = "#1a1a2e";
-      el.appendChild(mv);
-      mvRef.current = mv;
-      mv.addEventListener("load", () => {
-        const t = mv.getCameraTarget();
-        if (t) targetRef.current = { x: t.x ?? 0, y: t.y ?? 0, z: t.z ?? 0 };
-        loadedRef.current = true;
-        mv.cameraOrbit = `${cTheta}deg ${90 - cPhi}deg ${cRad}m`;
-        mv.cameraTarget = `${(t?.x ?? 0) + cOffX}m ${(t?.y ?? 0) + cOffY}m ${(t?.z ?? 0) + cOffZ}m`;
-        mv.setAttribute("rotation-per-second", `${cSpeed}deg`);
-        queueMicrotask(() => mv.jumpCameraToGoal?.());
-      }, { once: true });
-    };
-    if (customElements.get("model-viewer")) { init(); }
-    else { customElements.whenDefined("model-viewer").then(init).catch(init); }
-    return () => { cancelled = true; if (mvRef.current) { mvRef.current.remove(); mvRef.current = null; } };
+    const mv = document.createElement("model-viewer") as any;
+    mv.setAttribute("src", cur.url);
+    mv.setAttribute("camera-controls", "");
+    mv.setAttribute("auto-rotate", "");
+    mv.setAttribute("exposure", "0.8");
+    mv.setAttribute("interaction-prompt", "none");
+    mv.setAttribute("min-camera-orbit", "auto auto 0.5m");
+    mv.setAttribute("shadow-intensity", isMobile ? "0" : "0.2");
+    mv.style.width = "100%"; mv.style.height = "100%"; mv.style.background = "#1a1a2e";
+    el.appendChild(mv);
+    mvRef.current = mv;
+    mv.addEventListener("load", () => {
+      const t = mv.getCameraTarget();
+      if (t) targetRef.current = { x: t.x ?? 0, y: t.y ?? 0, z: t.z ?? 0 };
+      loadedRef.current = true;
+      mv.cameraOrbit = `${cTheta}deg ${90 - cPhi}deg ${cRad}m`;
+      mv.cameraTarget = `${(t?.x ?? 0) + cOffX}m ${(t?.y ?? 0) + cOffY}m ${(t?.z ?? 0) + cOffZ}m`;
+      mv.setAttribute("rotation-per-second", `${cSpeed}deg`);
+      queueMicrotask(() => mv.jumpCameraToGoal?.());
+    }, { once: true });
+    return () => { mv.remove(); if (mvRef.current === mv) mvRef.current = null; };
   }, [tab]);
 
   useEffect(() => { const mv = mvRef.current; if (mv) mv.cameraOrbit = `${cTheta}deg ${90 - cPhi}deg ${cRad}m`; }, [cTheta, cPhi, cRad]);
