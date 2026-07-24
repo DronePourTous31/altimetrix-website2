@@ -1,19 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Move3d, ArrowRight, CheckCircle2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import {
+  Move3d,
+  Ruler,
+  Sun,
+  Layers,
+  ArrowRight,
+  CheckCircle2,
+} from "lucide-react";
 
-const R2 = "https://pub-0459c8bf6e9348e592f4decd8b6bab91.r2.dev";
-
-const DEMOS: Record<string, string> = {
-  DEMO1: `${R2}/altimetrix/shared/index_3D.html?v=1&client=DEMO1`,
-  DEMO2: `${R2}/altimetrix/shared/index_3D.html?v=1&client=DEMO2`,
-  DEMO3: `${R2}/altimetrix/shared/index_3D.html?v=1&client=DEMO3`,
-};
-
-const FEATURES = [
+const features = [
   "Mesurez distances et surfaces en un clic",
   "Visualisez l'irradiation solaire sur votre toit",
   "Basculez entre vue 3D et DSM 2D",
@@ -23,58 +20,6 @@ const FEATURES = [
 ];
 
 export default function DemoPage() {
-  const [demo, setDemo] = useState("DEMO1");
-  const [editMode, setEditMode] = useState(false);
-  const [camCapture, setCamCapture] = useState<{
-    viewType: "3d" | "2d";
-    position?: string;
-    target?: string;
-    fov?: string;
-    center?: string;
-    zoom?: string;
-  } | null>(null);
-
-  useEffect(() => {
-    const handler = (e: MessageEvent) => {
-      if (e.data?.type === "cam_capture") {
-        setCamCapture({
-          viewType: "3d",
-          position: e.data.position.join(";"),
-          target: e.data.target.join(";"),
-          fov: String(e.data.fov || 60),
-        });
-      } else if (e.data?.type === "cam_capture_2d") {
-        setCamCapture({
-          viewType: "2d",
-          center: e.data.center.join(";"),
-          zoom: String(e.data.zoom || 18),
-        });
-      }
-    };
-    window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
-  }, []);
-
-  useEffect(() => {
-    createClient().auth.getUser().then(({ data }) => {
-      if (data?.user?.email === "faures.nicolas@orange.fr") setEditMode(true);
-    });
-  }, []);
-
-  const buildUrl = () => {
-    let url = DEMOS[demo];
-    if (editMode) url += "&edit=1";
-    if (camCapture) {
-      if (camCapture.viewType === "2d") {
-        url = url.replace("index_3D", "index_2D");
-        url += `&lat=${camCapture.center?.split(";")[0] || ""}&lng=${camCapture.center?.split(";")[1] || ""}&zoom=${camCapture.zoom || "18"}`;
-      } else {
-        url += `&position=[${camCapture.position}]&target=[${camCapture.target}]&FOV=${camCapture.fov}`;
-      }
-    }
-    return url;
-  };
-
   return (
     <>
       <section className="pt-32 pb-16 relative">
@@ -96,38 +41,21 @@ export default function DemoPage() {
             <div className="flex items-center justify-between p-4 border-b border-anthracite-700 flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <Move3d className="w-4 h-4 text-cyan-400" />
-                <span className="text-sm font-medium">Visualiseur 3D</span>
+                <span className="text-sm font-medium">Visualiseur 3D - Client : FAURES BRAX</span>
               </div>
-              <div className="flex items-center gap-2">
-                {Object.keys(DEMOS).map((k) => (
-                  <button
-                    key={k}
-                    onClick={() => setDemo(k)}
-                    className={`px-3 py-1.5 text-sm rounded-lg transition-all ${
-                      demo === k
-                        ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40"
-                        : "text-gray-400 border border-transparent hover:text-gray-200 hover:border-anthracite-600"
-                    }`}
-                  >
-                    {k === "DEMO1" ? "Démo 1" : k === "DEMO2" ? "Démo 2" : "Démo 3"}
-                  </button>
-                ))}
-                <a
-                  href={buildUrl()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-cyan-400 hover:text-white border border-cyan-500/30 rounded-lg hover:bg-cyan-500/10 transition-all"
-                >
-                  Ouvrir en plein écran
-                  <ArrowRight className="w-4 h-4" />
-                </a>
-                <span className="text-[10px] text-gray-600">{camCapture ? "●" : "○"}</span>
-              </div>
+              <a
+                href="https://altimetrix-557690596795-eu-north-1-an.s3.eu-north-1.amazonaws.com/altimetrix/shared/index_3D.html?client=FAURES_LABEGE"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2 text-sm text-cyan-400 hover:text-white border border-cyan-500/30 rounded-lg hover:bg-cyan-500/10 transition-all"
+              >
+                Ouvrir en plein écran
+                <ArrowRight className="w-4 h-4" />
+              </a>
             </div>
             <div className="relative w-full" style={{ height: "75vh", minHeight: "500px" }}>
               <iframe
-                key={demo + (editMode ? "-edit" : "")}
-                src={DEMOS[demo] + (editMode ? "&edit=1" : "")}
+                src="https://altimetrix-557690596795-eu-north-1-an.s3.eu-north-1.amazonaws.com/altimetrix/shared/index_3D.html?client=FAURES_LABEGE"
                 className="absolute inset-0 w-full h-full"
                 style={{ border: "none" }}
                 title="Visualiseur 3D AltiMetrix"
@@ -145,10 +73,12 @@ export default function DemoPage() {
             <h2 className="text-2xl font-bold mb-2">
               Fonctionnalités de la <span className="text-gradient">démo</span>
             </h2>
-            <p className="text-gray-400">Ce que vous pouvez faire dès maintenant</p>
+            <p className="text-gray-400">
+              Ce que vous pouvez faire dès maintenant
+            </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto">
-            {FEATURES.map((feature) => (
+            {features.map((feature) => (
               <div
                 key={feature}
                 className="flex items-start gap-3 p-4 bg-anthracite-800/30 border border-anthracite-700 rounded-xl"
