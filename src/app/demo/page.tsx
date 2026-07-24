@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Move3d, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Move3d, Camera, ArrowRight, CheckCircle2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const R2 = "https://pub-0459c8bf6e9348e592f4decd8b6bab91.r2.dev";
@@ -33,6 +33,8 @@ export default function DemoPage() {
     center?: string;
     zoom?: string;
   } | null>(null);
+  const [showParams, setShowParams] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     const handler = (e: MessageEvent) => {
@@ -43,12 +45,14 @@ export default function DemoPage() {
           target: e.data.target.join(";"),
           fov: String(e.data.fov || 60),
         });
+        setShowParams(true);
       } else if (e.data?.type === "cam_capture_2d") {
         setCamCapture({
           viewType: "2d",
           center: e.data.center.join(";"),
           zoom: String(e.data.zoom || 18),
         });
+        setShowParams(true);
       }
     };
     window.addEventListener("message", handler);
@@ -60,6 +64,10 @@ export default function DemoPage() {
       if (data?.user?.email === "faures.nicolas@orange.fr") setEditMode(true);
     });
   }, []);
+
+  const requestCapture = () => {
+    iframeRef.current?.contentWindow?.postMessage({ type: "capture" }, "*");
+  };
 
   const buildUrl = () => {
     let url = DEMOS[demo];
@@ -112,6 +120,15 @@ export default function DemoPage() {
                     {k === "DEMO1" ? "Démo 1" : k === "DEMO2" ? "Démo 2" : "Démo 3"}
                   </button>
                 ))}
+                {editMode && (
+                  <button
+                    onClick={requestCapture}
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-cyan-400 hover:text-white border border-cyan-500/30 rounded-lg hover:bg-cyan-500/10 transition-all"
+                  >
+                    <Camera className="w-4 h-4" />
+                    Capture Vue
+                  </button>
+                )}
                 <a
                   href={buildUrl()}
                   target="_blank"
@@ -121,23 +138,83 @@ export default function DemoPage() {
                   Ouvrir en plein écran
                   <ArrowRight className="w-4 h-4" />
                 </a>
-                <span className="text-[10px] text-gray-600">{camCapture ? "●" : "○"}</span>
+                <span className="text-[10px] text-gray-600">{camCapture ? "✓" : "○"}</span>
               </div>
             </div>
             <div className="relative w-full" style={{ height: "75vh", minHeight: "500px" }}>
               <iframe
+                ref={iframeRef}
                 key={demo + (editMode ? "-edit" : "")}
                 src={DEMOS[demo] + (editMode ? "&edit=1" : "")}
                 className="absolute inset-0 w-full h-full"
                 style={{ border: "none" }}
                 title="Visualiseur 3D AltiMetrix"
-                allow="fullscreen; gyroscope; accelerometer; magnetometer; xr-spatial-tracking"
+                allow="fullscreen; gyroscope; accelerometer; magnetometer; xr-spatial-tracking; clipboard-read; clipboard-write"
+                allowFullScreen
                 loading="lazy"
               />
             </div>
           </div>
         </div>
       </section>
+
+      {camCapture && showParams && (
+        <section className="pb-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="bg-anthracite-800 border border-cyan-500/20 rounded-2xl overflow-hidden">
+              <div className="flex items-center justify-between p-3 border-b border-anthracite-700">
+                <h3 className="text-sm font-semibold text-cyan-400 flex items-center gap-2">
+                  <Camera className="w-4 h-4" />
+                  Paramètres de la vue {camCapture.viewType === "3d" ? "3D" : "2D"}
+                </h3>
+                <button onClick={() => setShowParams(false)} className="text-gray-500 hover:text-white transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-4 space-y-2 text-sm">
+                {camCapture.viewType === "3d" ? (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Position</span>
+                      <span className="text-gray-200 font-mono text-xs">{camCapture.position}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Target</span>
+                      <span className="text-gray-200 font-mono text-xs">{camCapture.target}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">FOV</span>
+                      <span className="text-gray-200 font-mono text-xs">{camCapture.fov}°</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Centre (lat, lng)</span>
+                      <span className="text-gray-200 font-mono text-xs">{camCapture.center}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Zoom</span>
+                      <span className="text-gray-200 font-mono text-xs">{camCapture.zoom}</span>
+                    </div>
+                  </>
+                )}
+                <div className="pt-2 border-t border-anthracite-700">
+                  <a
+                    href={buildUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-xs text-cyan-400 hover:text-white transition-colors"
+                  >
+                    Ouvrir avec ces paramètres →
+                    <ArrowRight className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="pb-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
