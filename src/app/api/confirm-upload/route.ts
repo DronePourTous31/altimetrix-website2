@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import path from "path";
+import { sendEmail, uploadReceivedHtml } from "@/emails/templates";
 
 export const runtime = "nodejs";
 
@@ -51,6 +52,18 @@ export async function POST(req: Request) {
     .from("projets")
     .update({ storage_path_input: storagePath, upload_termine: true })
     .eq("id", projetId);
+
+  const authData = await authResp.json().catch(() => null);
+  const userEmail = authData?.email as string | undefined;
+  const userPrenom = authData?.user_metadata?.prenom as string | undefined;
+
+  if (userEmail) {
+    sendEmail({
+      to: userEmail,
+      subject: "Upload reçu — votre projet est en cours",
+      html: uploadReceivedHtml(userPrenom || "", projectName),
+    }).catch((err) => console.error("Email upload reçu error:", err));
+  }
 
   return NextResponse.json({ success: true, storagePath, uploadTermine: true });
 }

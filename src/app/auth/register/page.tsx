@@ -57,6 +57,12 @@ export default function RegisterPage() {
         setError("Erreur lors de la création du profil. Contactez le support.");
         setLoading(false); return;
       }
+
+      fetch("/api/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "welcome", to: form.email, prenom: form.prenom }),
+      }).catch((err) => console.error("Email bienvenue error:", err));
     }
 
     setLoading(false);

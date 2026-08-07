@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { sendEmail, subscriptionExpiryHtml } from "@/emails/templates";
 
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -180,6 +181,30 @@ export async function POST(req: Request) {
       const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id;
       if (!customerId) break;
       await deactivateSubscription(supabase, subscription.id, customerId, logErr);
+      break;
+    }
+
+    case "customer.subscription.updated": {
+      const subscription = event.data.object as Stripe.Subscription;
+      if (!subscription.cancel_at_period_end) break;
+      const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id;
+      if (!customerId) break;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, prenom")
+        .eq("stripe_customer_id", customerId)
+        .maybeSingle();
+      if (!profile) break;
+
+      const { data: { user } } = await supabase.auth.admin.getUserById(profile.id as string);
+      if (!user?.email) break;
+
+      sendEmail({
+        to: user.email,
+        subject: "Votre abonnement expire dans 7 jours",
+        html: subscriptionExpiryHtml((profile.prenom as string) || ""),
+      }).catch((err) => console.error("Email expiration abonnement error:", err));
       break;
     }
 
