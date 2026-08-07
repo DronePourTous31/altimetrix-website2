@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@/lib/supabase/server";
+import { resolvePlanId } from "@/lib/plans";
+import { getQuotaInfo, isExtraProject } from "@/lib/quota";
 
 export async function POST(req: Request) {
   const authHeader = req.headers.get("Authorization");
@@ -28,16 +30,60 @@ export async function POST(req: Request) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("abonnement_actif, essais_gratuits_restants")
+    .select("abonnement_actif, essais_gratuits_restants, forfait_id, plan_id")
     .eq("id", user.id)
     .single();
 
-  const isBypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true";
+  let forfaitSlug: string | null = null;
+  if (profile?.forfait_id) {
+    const { data: forfait } = await supabase
+      .from("forfaits")
+      .select("slug")
+      .eq("id", profile.forfait_id)
+      .maybeSingle();
+    forfaitSlug = forfait?.slug ?? null;
+  }
+  const planId = resolvePlanId({ plan_id: profile?.plan_id, forfait_slug: forfaitSlug });
 
-  if (profile?.abonnement_actif || isBypass) {
-    if (isBypass) {
-      await supabase.from("projets").update({ statut: "en_traitement" }).eq("id", projetId);
-    }
+  const { data: projet } = await supabase
+    .from("projets")
+    .select("inspection_photos, option_calepinage")
+    .eq("id", projetId)
+    .single();
+
+  // Non abonné et sans essai restant → renvoi vers les Tarifs
+  if (!profile?.abonnement_actif && (profile?.essais_gratuits_restants ?? 0) <= 0) {
+    return NextResponse.json({ redirect: "/pricing?besoin=projet", abonnementActif: false });
+  }
+
+  // Options payables : uniquement abonnés (les photos d'inspection sont à +5€)
+  const inspectionChargeable = !!projet?.inspection_photos && !!planId;
+  const hasChargeableOptions =
+    profile?.abonnement_actif &&
+    Boolean(inspectionChargeable || projet?.option_calepinage);
+
+  // Projet supplémentaire à la carte : le quota mensuel (somme des forfaits
+  // actifs) est déjà épuisé → le projet est facturé avant traitement.
+  let extraRequis = false;
+  if (profile?.abonnement_actif && planId) {
+    const quota = await getQuotaInfo(supabase, user.id);
+    extraRequis = isExtraProject(quota);
+  }
+
+  if (hasChargeableOptions || extraRequis) {
+    // Options et/ou projet supplémentaire à régler avant traitement → checkout-options
+    // (le watcher attend options_payees=true, posé par le webhook Stripe).
+    return NextResponse.json({
+      redirect: `/api/checkout-options?projet_id=${projetId}`,
+      options: true,
+      extra: extraRequis,
+    });
+  }
+
+  // Aucune option payante : les options sont considérées réglées
+  await supabase.from("projets").update({ options_payees: true }).eq("id", projetId);
+
+  if (profile?.abonnement_actif) {
     return NextResponse.json({ redirect: `/dashboard/projets/${projetId}`, abonnementActif: true });
   }
 
@@ -45,9 +91,8 @@ export async function POST(req: Request) {
     await supabase.from("profiles").update({
       essais_gratuits_restants: (profile?.essais_gratuits_restants ?? 0) - 1,
     }).eq("id", user.id);
-    await supabase.from("projets").update({ statut: "en_traitement" }).eq("id", projetId);
     return NextResponse.json({ redirect: `/dashboard/projets/${projetId}`, essai: true });
   }
 
-  return NextResponse.json({ redirect: `/api/checkout?projet_id=${projetId}&montant=25000`, paiement: true });
+  return NextResponse.json({ redirect: "/pricing?besoin=projet", abonnementActif: false });
 }

@@ -1,0 +1,56 @@
+import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import path from "path";
+
+export const runtime = "nodejs";
+
+const CLIENTS_ROOT = process.env.CLIENTS_ROOT || "F:\\DRONE\\ALTIMETRIX\\CLIENTS";
+
+export async function POST(req: Request) {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return NextResponse.json({ error: "Non authé" }, { status: 401 });
+  }
+
+  const token = authHeader.slice(7);
+
+  const authResp = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    },
+  });
+
+  if (!authResp.ok) {
+    return NextResponse.json({ error: "Non authé" }, { status: 401 });
+  }
+
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      global: serviceKey
+        ? { headers: { Authorization: `Bearer ${serviceKey}` } }
+        : { headers: { Authorization: `Bearer ${token}` } },
+      cookies: { getAll: () => [], setAll: () => {} },
+    }
+  );
+
+  const { projetId, clientName, projectName } = await req.json();
+  if (!projetId || !clientName || !projectName) {
+    return NextResponse.json({ error: "Champs manquants" }, { status: 400 });
+  }
+
+  const r2Configured = !!(process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY && process.env.R2_SECRET_KEY);
+  const storagePath = r2Configured
+    ? `r2://${process.env.R2_BUCKET || "altimetrix-uploads"}/clients/${clientName}/${projectName}`
+    : path.join(CLIENTS_ROOT, clientName, projectName);
+
+  await supabase
+    .from("projets")
+    .update({ storage_path_input: storagePath, upload_termine: true })
+    .eq("id", projetId);
+
+  return NextResponse.json({ success: true, storagePath, uploadTermine: true });
+}

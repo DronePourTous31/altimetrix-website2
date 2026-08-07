@@ -1,6 +1,6 @@
 export type TypeCompte = "artisan" | "particulier";
 export type StatutProjet = "upload_en_attente" | "en_traitement" | "livre" | "erreur";
-export type TypeAnalyse = "mesure" | "solaire" | "pro";
+export type TypeAnalyse = "mesure" | "calepinage" | "solaire";
 export type StatutCommande = "en_attente" | "payee" | "echec" | "remboursee";
 
 export interface Profile {
@@ -15,6 +15,8 @@ export interface Profile {
   forfait_id: string | null;
   stripe_customer_id: string | null;
   essais_gratuits_restants: number;
+  plan_id?: string | null;
+  calepinage_actif?: boolean;
   role?: string;
 }
 
@@ -31,6 +33,9 @@ export interface Projet {
   storage_path_output: string | null;
   viewer_url: string | null;
   rapport_url: string | null;
+  inspection_photos?: boolean;
+  option_calepinage?: boolean;
+  options_payees?: boolean;
 }
 
 export interface Forfait {
@@ -49,6 +54,7 @@ export interface Commande {
   id: string;
   user_id: string;
   forfait_id: string | null;
+  projet_id?: string | null;
   stripe_session_id: string | null;
   montant: number;
   statut: StatutCommande;
@@ -79,4 +85,6 @@ export interface PricingPlan {
   notIncluded?: string[];
   nbProjets?: number;
   costPerProject?: number;
+  stripePriceId?: string;
+  stripeAnnualPriceId?: string;
 }

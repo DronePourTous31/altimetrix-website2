@@ -1,13 +1,46 @@
-import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import Link from "next/link";
-import { ArrowLeft, ExternalLink, FileText, Move3d, Ruler, Sun } from "lucide-react";
+"use client";
 
-export default async function ProjetDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const supabase = await createClient();
-  const { id } = await params;
-  const { data: projet } = await supabase.from("projets").select("*").eq("id", id).single();
-  if (!projet) notFound();
+import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, ExternalLink, FileText, Move3d, Map, Loader2, AlertCircle } from "lucide-react";
+import { getAuthToken } from "@/lib/supabase/client";
+
+export default function ProjetDetailPage() {
+  const router = useRouter();
+  const params = useParams();
+  const [projet, setProjet] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    getAuthToken().then(async (token) => {
+      if (!token) return router.push("/auth/login");
+      const res = await fetch(`/api/projets?id=${params.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401) return router.push("/auth/login");
+      const json = await res.json();
+      if (json.projets) setProjet(json.projets);
+      else setError("Projet introuvable");
+      setLoading(false);
+    });
+  }, [params.id]);
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-20">
+      <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+    </div>
+  );
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center py-20 gap-4">
+      <AlertCircle className="w-8 h-8 text-red-400" />
+      <p className="text-red-400">{error}</p>
+    </div>
+  );
+
+  if (!projet) return null;
 
   const statutLabels: Record<string, string> = {
     upload_en_attente: "Upload en attente",
@@ -15,6 +48,17 @@ export default async function ProjetDetailPage({ params }: { params: Promise<{ i
     livre: "Livré",
     erreur: "Erreur",
   };
+
+  const TYPE_ANALYSE_LABEL: Record<string, string> = {
+    mesure: "Mesure",
+    calepinage: "Mesure+",
+    solaire: "Analyse solaire",
+  };
+  const typeLabel =
+    projet.type_analyse === "calepinage" ||
+    (projet.type_analyse === "mesure" && projet.option_calepinage)
+      ? "Mesure+"
+      : TYPE_ANALYSE_LABEL[projet.type_analyse] ?? projet.type_analyse;
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -28,7 +72,7 @@ export default async function ProjetDetailPage({ params }: { params: Promise<{ i
           <p className="text-gray-500 text-sm mt-1">
             {new Date(projet.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
             {projet.adresse && ` — ${projet.adresse}`}
-            <span className="ml-2 capitalize">· {projet.type_analyse}</span>
+            <span className="ml-2">· {typeLabel}</span>
           </p>
         </div>
         <span className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
@@ -42,28 +86,22 @@ export default async function ProjetDetailPage({ params }: { params: Promise<{ i
       </div>
 
       {projet.statut === "livre" && (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-          {projet.viewer_url && (
-            <a href={projet.viewer_url} target="_blank"
-              className="p-5 bg-anthracite-800/30 border border-anthracite-700 rounded-xl hover:border-cyan-500/30 transition-all group">
-              <Move3d className="w-8 h-8 text-cyan-400 mb-3 group-hover:scale-110 transition-transform" />
-              <p className="font-semibold mb-1">Visualiseur 3D</p>
-              <p className="text-xs text-gray-500">Ouvrir le modèle 3D interactif</p>
-            </a>
-          )}
-          {projet.rapport_url && (
-            <a href={projet.rapport_url} target="_blank"
-              className="p-5 bg-anthracite-800/30 border border-anthracite-700 rounded-xl hover:border-cyan-500/30 transition-all group">
-              <FileText className="w-8 h-8 text-cyan-400 mb-3 group-hover:scale-110 transition-transform" />
-              <p className="font-semibold mb-1">Rapport</p>
-              <p className="text-xs text-gray-500">Télécharger le rapport PDF</p>
-            </a>
-          )}
-          <div className="p-5 bg-anthracite-800/30 border border-anthracite-700 rounded-xl group">
-            <Ruler className="w-8 h-8 text-cyan-400 mb-3 group-hover:scale-110 transition-transform" />
-            <p className="font-semibold mb-1">Outils de mesure</p>
-            <p className="text-xs text-gray-500">Accéder aux mesures en ligne</p>
-          </div>
+        <div className="grid sm:grid-cols-3 gap-4 mb-8">
+          <a href={projet.url_3d || projet.viewer_url} target="_blank"
+            className="p-6 bg-anthracite-800/30 border border-anthracite-700 rounded-xl hover:border-cyan-500/30 transition-all group">
+            <Move3d className="w-8 h-8 text-cyan-400 mb-3 group-hover:scale-110 transition-transform" />
+            <p className="font-semibold">Visualiseur 3D</p>
+          </a>
+          <a href={projet.rapport_webodm_url} target="_blank"
+            className="p-6 bg-anthracite-800/30 border border-anthracite-700 rounded-xl hover:border-cyan-500/30 transition-all group">
+            <FileText className="w-8 h-8 text-cyan-400 mb-3 group-hover:scale-110 transition-transform" />
+            <p className="font-semibold">Rapport</p>
+          </a>
+          <a href={projet.url_2d || projet.rapport_url} target="_blank"
+            className="p-6 bg-anthracite-800/30 border border-anthracite-700 rounded-xl hover:border-cyan-500/30 transition-all group">
+            <Map className="w-8 h-8 text-cyan-400 mb-3 group-hover:scale-110 transition-transform" />
+            <p className="font-semibold">Visualiseur 2D</p>
+          </a>
         </div>
       )}
 

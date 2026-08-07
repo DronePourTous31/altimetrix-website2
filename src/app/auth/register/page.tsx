@@ -50,7 +50,8 @@ export default function RegisterPage() {
         nom: form.nom,
         type_compte: form.type_compte,
         siret: form.siret || null,
-        essais_gratuits_restants: 2,
+        plan_id: "solar-pro",
+        essais_gratuits_restants: 3,
       });
       if (profileError) {
         setError("Erreur lors de la création du profil. Contactez le support.");

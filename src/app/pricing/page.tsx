@@ -2,16 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, XCircle, ChevronRight } from "lucide-react";
+import { CheckCircle2, XCircle, ChevronRight } from "lucide-react";
 import {
   pricingPlans, segments, roiData, concurData,
   addons, guarantees, faqItems, compareColumns, compareRows,
 } from "@/data/pricing";
+import { CheckoutButton } from "@/components/CheckoutButton";
 import type { PricingPlan } from "@/lib/types";
 
 export default function PricingPage() {
   const [annual, setAnnual] = useState(false);
-  const [activeSeg, setActiveSeg] = useState("couvreurs");
+  const [activeSeg, setActiveSeg] = useState("solaire");
   const [openFaq, setOpenFaq] = useState<string | null>(null);
 
   return (
@@ -154,7 +155,7 @@ export default function PricingPage() {
       <section className="pb-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto bg-cyan-500 rounded-3xl py-14 px-8 text-center">
           <h2 className="text-3xl sm:text-4xl font-bold text-anthracia-900 mb-3">Prêt à transformer vos chantiers ?</h2>
-          <p className="text-base text-anthracite-800 mb-8">Commencez avec 1 mois offert. Aucun engagement. Vos premiers modèles livrés sous 24h.</p>
+          <p className="text-base text-anthracite-800 mb-8">Commencez avec 1 mois de Solar Pro offert — 3 projets, sans carte. Vos premiers modèles livrés sous 24h.</p>
           <div className="flex gap-4 justify-center flex-wrap">
             <Link
               href="/auth/register"
@@ -177,10 +178,10 @@ export default function PricingPage() {
 
 /* ─── COUVREURS SECTION ─── */
 function CouvreursSection({ plans, annual }: { plans: PricingPlan[]; annual: boolean }) {
-  const decouverte = plans.find(p => p.id === "decouverte");
   const starter = plans.find(p => p.id === "starter-mesures");
   const starterPro = plans.find(p => p.id === "starter-pro");
   const roi = roiData.couvreurs;
+  const [calepinage, setCalepinage] = useState(false);
 
   return (
     <section className="pb-12">
@@ -191,11 +192,9 @@ function CouvreursSection({ plans, annual }: { plans: PricingPlan[]; annual: boo
           <p className="text-sm text-gray-400 mt-1">Mesures précises, rapports professionnels, implantation 3D — sans jamais monter en hauteur.</p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-4 max-w-6xl mx-auto">
-          {/* Découverte */}
-          {decouverte && <PricingCard plan={decouverte} annual={false} ctaLabel="Commencer un projet →" />}
-          {/* Starter Mesures */}
-          {starter && <PricingCard plan={starter} annual={annual} ctaLabel="Démarrer — 1 mois offert →" highlighted />}
+        <div className="grid md:grid-cols-2 gap-4 max-w-4xl mx-auto">
+          {/* Starter Mesures / Starter Mesures+ */}
+          {starter && <PricingCard plan={starter} annual={annual} ctaLabel={calepinage ? "Choisir Starter Mesures+ →" : "Choisir Starter Mesures →"} highlighted calepinage={calepinage} onToggleCalepinage={() => setCalepinage(!calepinage)} />}
           {/* Starter Pro */}
           {starterPro && <PricingCard plan={starterPro} annual={annual} ctaLabel="Choisir Starter Pro →" />}
         </div>
@@ -237,7 +236,7 @@ function SolaireSection({ plans, annual }: { plans: PricingPlan[]; annual: boole
         </div>
 
         <div className="grid md:grid-cols-2 gap-4 max-w-4xl mx-auto">
-          {solarPro && <PricingCard plan={solarPro} annual={annual} ctaLabel="Démarrer Solar Pro →" highlighted />}
+          {solarPro && <PricingCard plan={solarPro} annual={annual} ctaLabel="Essayer 1 mois offert →" highlighted trialCta />}
           {solarProPlus && <PricingCard plan={solarProPlus} annual={annual} ctaLabel="Choisir Solar Pro+ →" />}
         </div>
 
@@ -318,7 +317,7 @@ function ComparatifSection() {
           <table className="w-full text-xs border-collapse min-w-[640px]">
             <thead>
               <tr>
-                <th className="p-2.5 text-left font-semibold text-gray-400 border-b border-anthracite-700 bg-anthracite-800/30 whitespace-nowrap">Fonctionnalité</th>
+                <th className="sticky left-0 z-10 p-2.5 text-left font-semibold text-gray-400 border-b border-anthracite-700 bg-anthracite-800/30 whitespace-nowrap">Fonctionnalité</th>
                 {compareColumns.map((col) => (
                   <th key={col.key} className={`p-2.5 text-left font-semibold border-b border-anthracite-700 whitespace-pre-line ${
                     col.highlight ? "bg-cyan-500 text-anthracite-900" : "bg-anthracite-800/30 text-gray-400"
@@ -331,7 +330,7 @@ function ComparatifSection() {
             <tbody>
               {compareRows.map((row) => (
                 <tr key={row.label}>
-                  <td className="p-2.5 border-b border-anthracite-700 text-gray-200 font-medium">{row.label}</td>
+                  <td className="sticky left-0 z-10 p-2.5 border-b border-anthracite-700 text-gray-200 font-medium bg-anthracite-900">{row.label}</td>
                   {compareColumns.map((col) => {
                     const val = row.values[col.key] || "—";
                     const isCheck = val === "✓";
@@ -362,17 +361,26 @@ function ComparatifSection() {
 
 /* ─── PRICING CARD ─── */
 function PricingCard({
-  plan, annual, ctaLabel, highlighted,
+  plan, annual, ctaLabel, highlighted, calepinage, onToggleCalepinage, trialCta,
 }: {
   plan: PricingPlan;
   annual: boolean;
   ctaLabel: string;
   highlighted?: boolean;
+  calepinage?: boolean;
+  onToggleCalepinage?: () => void;
+  trialCta?: boolean;
 }) {
   const price = annual && plan.annualPrice ? plan.annualPrice : plan.price;
+  const effectivePrice = calepinage ? price + 10 : price;
+  const displayPrice = effectivePrice;
   const savings = annual && plan.annualPrice
     ? Math.round((1 - plan.annualPrice / plan.price) * 100)
     : 0;
+
+  // Avec l'option Calepinage 3D cochée, « Starter Mesures » devient
+  // « Starter Mesures+ » (le calepinage est alors inclus dans l'abonnement).
+  const displayName = plan.id === "starter-mesures" && calepinage ? "Starter Mesures+" : plan.name;
 
   return (
     <div className={`relative p-6 rounded-2xl border flex flex-col ${
@@ -391,21 +399,21 @@ function PricingCard({
           {plan.badge}
         </span>
       )}
-      <h3 className="font-bold text-lg mb-1">{plan.name}</h3>
+      <h3 className="font-bold text-lg mb-1">{displayName}</h3>
       <p className="text-xs text-gray-400 font-light leading-relaxed mb-4">{plan.description}</p>
 
       <div className="mb-2">
-        <span className="text-3xl font-bold text-cyan-400">{price}€</span>
+        <span className="text-3xl font-bold text-cyan-400">{displayPrice}€</span>
         <span className="text-xs text-gray-500 ml-1">{plan.period === "once" ? "HT · projet unique" : "/mois HT"}</span>
       </div>
       {plan.nbProjets && (
         <div className="text-xs text-cyan-400 mb-4">
-          {plan.nbProjets} projet{plan.nbProjets > 1 ? "s" : ""}/mois <span className="text-gray-500">· soit {plan.costPerProject}€/projet</span>
+          {plan.nbProjets} projet{plan.nbProjets > 1 ? "s" : ""}/mois <span className="text-gray-500">· soit {Math.round(effectivePrice / plan.nbProjets)}€/projet</span>
         </div>
       )}
-      {savings > 0 && (
+      {savings > 0 && !calepinage && (
         <div className="text-xs text-amber-400 mb-4">
-          {price * 12}€/an — économisez {Math.round((plan.price! * 12) - (price * 12))}€
+          {yearlyTotal(plan, annual)}€/an — économisez {Math.round(plan.price! * 12 - yearlyTotal(plan, annual))}€
         </div>
       )}
 
@@ -418,6 +426,12 @@ function PricingCard({
             {f}
           </li>
         ))}
+        {calepinage && (
+          <li key="calepinage-extra" className="flex items-start gap-2.5 text-xs text-cyan-400 font-medium">
+            <span className="text-cyan-400 mt-0.5 shrink-0">✦</span>
+            Calepinage panneaux PV en 3D
+          </li>
+        )}
         {plan.notIncluded?.map((f) => (
           <li key={f} className="flex items-start gap-2.5 text-xs text-gray-600">
             <span className="mt-0.5 shrink-0">○</span>
@@ -426,16 +440,41 @@ function PricingCard({
         ))}
       </ul>
 
-      <Link
-        href="/auth/register"
-        className={`block w-full py-3 text-center text-sm font-medium rounded-xl transition-all ${
-          highlighted
-            ? "gradient-cyan text-white hover:opacity-90 hover:shadow-lg hover:shadow-cyan-500/25"
-            : "bg-transparent border border-anthracite-600 text-gray-300 hover:border-cyan-500 hover:text-cyan-400"
-        }`}
-      >
-        {ctaLabel}
-      </Link>
+      {onToggleCalepinage && (
+        <button
+          onClick={onToggleCalepinage}
+          className={`flex items-center justify-between w-full px-4 py-2.5 mb-4 rounded-xl border text-xs font-medium transition-all ${
+            calepinage
+              ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-400"
+              : "border-anthracite-600 text-gray-400 hover:border-cyan-500/40 hover:text-gray-200"
+          }`}
+        >
+          <span>+ Calepinage 3D</span>
+          <div className="flex items-center gap-2">
+            <span className="text-cyan-400 font-semibold">+10€</span>
+            <div className={`relative w-8 h-[18px] rounded-full transition-colors ${calepinage ? "bg-cyan-500" : "bg-anthracite-600"}`}>
+              <div className={`absolute top-[2px] w-3.5 h-3.5 rounded-full bg-white transition-all ${calepinage ? "left-[16px]" : "left-[2px]"}`} />
+            </div>
+          </div>
+        </button>
+      )}
+
+      {trialCta ? (
+        <Link
+          href="/auth/register"
+          className="block w-full py-3 text-center text-sm font-medium rounded-xl gradient-cyan text-white hover:opacity-90 hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
+        >
+          {ctaLabel}
+        </Link>
+      ) : (
+        <CheckoutButton planId={plan.id} annual={annual} calepinage={calepinage} highlighted={highlighted}>
+          {ctaLabel}
+        </CheckoutButton>
+      )}
     </div>
   );
+}
+
+function yearlyTotal(plan: PricingPlan, annual: boolean) {
+  return annual && plan.annualPrice ? plan.annualPrice * 12 : plan.price * 12;
 }

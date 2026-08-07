@@ -1,72 +1,84 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { Plus, AlertTriangle, Gift, FolderOpen, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { getAuthToken } from "@/lib/supabase/client";
 import Badge from "@/components/ui/Badge";
 
-function getBadgeStatus(statut: string): "actif" | "en_cours" | "livre" | "erreur" {
-  const map: Record<string, "actif" | "en_cours" | "livre" | "erreur"> = {
-    upload_en_attente: "actif", en_traitement: "en_cours", livre: "livre", erreur: "erreur",
-  };
-  return map[statut] || "actif";
-}
+const STATUS_MAP: Record<string, string> = {
+  upload_en_attente: "actif",
+  en_traitement: "en_cours",
+  livre: "livre",
+  erreur: "erreur",
+};
 
-export default async function DashboardPage() {
-  const bypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true" ||
-    !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+export default function DashboardPage() {
+  const router = useRouter();
+  const [projets, setProjets] = useState<any[] | null>(null);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const supabase = await createClient();
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("stripe") === "success") {
+      setSuccess("Paiement réussi ! Votre abonnement est en cours d'activation.");
+      window.history.replaceState({}, "", "/dashboard");
+    }
+  }, []);
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("abonnement_actif, forfait_id, essais_gratuits_restants")
-    .single();
+  useEffect(() => {
+    getAuthToken().then((token) => {
+      if (!token) {
+        setError("Session introuvable. Reconnectez-vous.");
+        return;
+      }
+      fetch("/api/projets", { headers: { Authorization: `Bearer ${token}` } })
+        .then((res) => {
+          if (res.status === 401) return router.push("/auth/login");
+          return res.json();
+        })
+        .then((data) => {
+          if (data?.projets) setProjets(data.projets);
+          else setError("Erreur chargement");
+        })
+        .catch(() => setError("Erreur réseau"));
+    });
+  }, []);
 
-  const { data: forfaitData } = profile?.forfait_id
-    ? await supabase.from("forfaits").select("nom, nb_projets_mois, prix_mensuel").eq("id", profile.forfait_id).single()
-    : { data: null };
+  const now = new Date();
+  const projetsThisMonth =
+    projets?.filter((p) => {
+      const d = new Date(p.created_at);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    }).length || 0;
+  const enCours = projets?.filter((p) => p.statut === "en_traitement").length || 0;
+  const livres = projets?.filter((p) => p.statut === "livre").length || 0;
 
-  const { data: projets } = await supabase
-    .from("projets")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(5);
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <AlertCircle className="w-8 h-8 text-red-400" />
+        <p className="text-red-400">{error}</p>
+      </div>
+    );
+  }
 
-  const { count: projetsMois } = await supabase
-    .from("projets")
-    .select("*", { count: "exact", head: true })
-    .gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
-
-  const nbMax = forfaitData?.nb_projets_mois || 3;
-  const projetsRestants = profile?.abonnement_actif ? nbMax - (projetsMois || 0) : null;
+  if (!projets) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+      </div>
+    );
+  }
 
   return (
     <div>
-      {bypass && (
-        <div className="flex items-start gap-3 p-4 mb-6 rounded-xl bg-purple-500/10 border border-purple-500/20">
-          <Gift className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
-          <div className="text-sm text-purple-300">
-            <strong className="text-purple-200">Mode développement actif.</strong> Toutes les limitations sont désactivées.
-          </div>
-        </div>
-      )}
-
-      {!bypass && !profile?.abonnement_actif && (profile?.essais_gratuits_restants ?? 0) > 0 && (
-        <div className="flex items-start gap-3 p-4 mb-6 rounded-xl bg-green-500/10 border border-green-500/20">
-          <Gift className="w-5 h-5 text-green-400 shrink-0 mt-0.5" />
-          <div className="text-sm text-green-300">
-            <strong>{profile?.essais_gratuits_restants} essai{profile?.essais_gratuits_restants !== 1 ? "s" : ""} gratuit{profile?.essais_gratuits_restants !== 1 ? "s" : ""} restant{profile?.essais_gratuits_restants !== 1 ? "s" : ""}.</strong>{" "}
-            Testez AltiMetrix sans engagement.
-          </div>
-        </div>
-      )}
-
-      {!bypass && !profile?.abonnement_actif && (profile?.essais_gratuits_restants ?? 0) === 0 && (
-        <div className="flex items-start gap-3 p-4 mb-6 rounded-xl bg-amber-500/10 border border-amber-500/20">
-          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-          <div className="text-sm text-amber-300">
-            <strong>Abonnement inactif.</strong> Vos essais gratuits sont épuisés.{" "}
-            <Link href="/pricing" className="text-cyan-400 hover:underline font-medium">Voir les offres</Link>
-          </div>
+      {success && (
+        <div className="mb-6 flex items-center gap-3 bg-green-500/10 border border-green-500/30 text-green-400 rounded-xl px-5 py-4">
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
+          <p className="text-sm">{success}</p>
         </div>
       )}
 
@@ -82,34 +94,33 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-anthracite-800/50 border border-anthracite-700 rounded-xl p-5">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Forfait actuel</p>
-          <p className="text-xl font-bold">{forfaitData?.nom || "Essai gratuit"}</p>
-          {projetsRestants !== null && (
-            <p className="text-xs text-gray-500 mt-1">{projetsRestants} projet(s) restant(s) ce mois</p>
-          )}
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total projets</p>
+          <p className="text-xl font-bold">{projets.length}</p>
         </div>
         <div className="bg-anthracite-800/50 border border-anthracite-700 rounded-xl p-5">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Projets ce mois</p>
-          <p className="text-xl font-bold text-cyan-400">{projetsMois || 0}</p>
+          <p className="text-xl font-bold text-cyan-400">{projetsThisMonth}</p>
         </div>
         <div className="bg-anthracite-800/50 border border-anthracite-700 rounded-xl p-5">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">En cours</p>
-          <p className="text-xl font-bold text-amber-400">{projets?.filter((p) => p.statut === "en_traitement").length || 0}</p>
+          <p className="text-xl font-bold text-amber-400">{enCours}</p>
         </div>
         <div className="bg-anthracite-800/50 border border-anthracite-700 rounded-xl p-5">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Livrés</p>
-          <p className="text-xl font-bold text-green-400">{projets?.filter((p) => p.statut === "livre").length || 0}</p>
+          <p className="text-xl font-bold text-green-400">{livres}</p>
         </div>
       </div>
 
       <div className="bg-anthracite-800/30 border border-anthracite-700 rounded-xl">
         <div className="px-6 py-4 border-b border-anthracite-700 flex items-center justify-between">
           <h2 className="font-semibold">Derniers projets</h2>
-          <Link href="/dashboard/projets" className="text-sm text-cyan-400 hover:text-cyan-300">Voir tout</Link>
+          <Link href="/dashboard/projets" className="text-sm text-cyan-400 hover:text-cyan-300">
+            Voir tout
+          </Link>
         </div>
-        {projets && projets.length > 0 ? (
+        {projets.length > 0 ? (
           <div className="divide-y divide-anthracite-700">
-            {projets.map((projet) => (
+            {projets.slice(0, 5).map((projet) => (
               <div key={projet.id} className="px-6 py-4 flex items-center justify-between hover:bg-anthracite-800/30 transition-colors">
                 <div>
                   <p className="font-medium text-sm">{projet.nom}</p>
@@ -118,7 +129,7 @@ export default async function DashboardPage() {
                     {projet.adresse && ` — ${projet.adresse}`}
                   </p>
                 </div>
-                <Badge status={getBadgeStatus(projet.statut)} />
+                <Badge status={STATUS_MAP[projet.statut] as "actif" | "en_cours" | "livre" | "erreur"} />
               </div>
             ))}
           </div>

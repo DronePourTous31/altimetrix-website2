@@ -2,24 +2,6 @@ import { PricingPlan } from "@/lib/types";
 
 export const pricingPlans: PricingPlan[] = [
   {
-    id: "decouverte",
-    name: "Découverte",
-    description: "Testez AltiMetrix sur un seul chantier. Idéal pour découvrir la puissance du modèle 3D sans engagement.",
-    price: 149,
-    period: "once",
-    category: "one-shot",
-    segment: "couvreurs",
-    badge: "One shot",
-    features: [
-      "Modèle 3D photoréaliste",
-      "Orthophoto 2D + MNS",
-      "Mesures (surfaces, distances, pentes)",
-      "Rapport PDF professionnel",
-      "Mission planner Leaflet inclus",
-    ],
-    notIncluded: ["Calepinage solaire", "Implantation 3D d'objets"],
-  },
-  {
     id: "starter-mesures",
     name: "Starter Mesures",
     description: "L'abonnement idéal pour professionnaliser vos devis et gagner du temps sur chaque chantier.",
@@ -35,13 +17,16 @@ export const pricingPlans: PricingPlan[] = [
       "Archivage modèles 6 mois",
       "Vérification qualité photos incluse",
       "Support email",
+      "Projets supp. à 19€/projet",
     ],
-    notIncluded: ["Calepinage solaire"],
+    notIncluded: [],
     nbProjets: 3,
     period: "month",
     category: "measurement",
     segment: "couvreurs",
     costPerProject: 16,
+    stripePriceId: "price_1TzgoFDXglAiGCG83naU24n4",
+    stripeAnnualPriceId: "price_1TzgoGDXglAiGCG8wJIeEE0e",
   },
   {
     id: "starter-pro",
@@ -53,6 +38,7 @@ export const pricingPlans: PricingPlan[] = [
     highlighted: false,
     features: [
       "Tout le Starter Mesures ×10",
+      "Calepinage panneaux PV en 3D",
       "Projets supp. à 15€/projet",
       "Archivage 12 mois",
       "Traitement prioritaire <12h",
@@ -60,12 +46,14 @@ export const pricingPlans: PricingPlan[] = [
       "Export CAO (DXF/DWG)",
       "Tableau de bord multi-projets",
     ],
-    notIncluded: ["Calepinage solaire"],
+    notIncluded: [],
     nbProjets: 10,
     period: "month",
     category: "measurement",
     segment: "couvreurs",
     costPerProject: 12,
+    stripePriceId: "price_1TzgoGDXglAiGCG85L8IOx8q",
+    stripeAnnualPriceId: "price_1TzgoHDXglAiGCG8MG60CwAb",
   },
   {
     id: "solar-pro",
@@ -84,12 +72,15 @@ export const pricingPlans: PricingPlan[] = [
       "Vue 2D DSM pour analyse d'exposition",
       "Mission planner Leaflet inclus",
       "Rapport client complet",
+      "Projets supp. à 29€/projet",
     ],
     nbProjets: 3,
     period: "month",
     category: "solar",
     segment: "solaire",
     costPerProject: 26,
+    stripePriceId: "price_1TzgoHDXglAiGCG8yumiQMG8",
+    stripeAnnualPriceId: "price_1TzgoIDXglAiGCG8gVEjJWb5",
   },
   {
     id: "solar-pro-plus",
@@ -113,6 +104,8 @@ export const pricingPlans: PricingPlan[] = [
     category: "solar",
     segment: "solaire",
     costPerProject: 19,
+    stripePriceId: "price_1TzgoIDXglAiGCG8aAaItlPR",
+    stripeAnnualPriceId: "price_1TzgoJDXglAiGCG8vqLP7cma",
   },
   {
     id: "particulier-standard",
@@ -134,6 +127,7 @@ export const pricingPlans: PricingPlan[] = [
       "Analyse solaire / calepinage PV",
       "Implantation 3D piscine ou abris",
     ],
+    stripePriceId: "price_1TzgoJDXglAiGCG8qOkED2ph",
   },
   {
     id: "particulier-premium",
@@ -154,6 +148,7 @@ export const pricingPlans: PricingPlan[] = [
       "Rapport enrichi avec visualisations 3D",
       "Accès modèle 3D interactif 3 mois",
     ],
+    stripePriceId: "price_1TzgoKDXglAiGCG8jd4KWOdp",
   },
 ];
 
@@ -217,7 +212,7 @@ export const guarantees = [
   { icon: "⚡", title: "Livraison sous 24–48h", desc: "Modèles et rapports disponibles sous 24h après validation des photos." },
   { icon: "🔍", title: "Contrôle qualité photos", desc: "Chaque jeu de photos est vérifié avant traitement. Si insuffisant, vous êtes recontacté sans frais." },
   { icon: "🔓", title: "Sans engagement an 1", desc: "Résiliez à tout moment. Aucuns frais cachés. L'annuel est une option." },
-  { icon: "🎁", title: "1er mois offert", desc: "Pour tout abonnement pendant la période de lancement. Testez, approuvez, puis décidez." },
+  { icon: "🎁", title: "1er mois Solar Pro offert", desc: "3 projets offerts à la création du compte, sans carte bancaire. Testez, approuvez, puis décidez." },
 ];
 
 export const faqItems = [
@@ -239,32 +234,33 @@ export const faqItems = [
   },
   {
     q: "Les projets non utilisés dans le mois sont-ils reportés ?",
-    a: "Non, les projets inclus sont renouvelés chaque mois et ne s'accumulent pas. En revanche, vous pouvez commander des projets supplémentaires à la carte (19€ Starter, 22€ Solar Pro) sans changer de forfait.",
+    a: "Non, les projets inclus sont renouvelés chaque mois et ne s'accumulent pas. En revanche, vous pouvez commander des projets supplémentaires à la carte (19€ Starter Mesures, 15€ Starter Pro, 29€ Solar Pro, 22€ Solar Pro+) sans changer de forfait.",
   },
 ];
 
 export const compareColumns = [
-  { key: "decouverte", name: "Découverte\n149€" },
   { key: "starter-mesures", name: "Starter\n49€/mois", highlight: true },
-  { key: "starter-pro", name: "Starter Pro\n119€/mois" },
   { key: "solar-pro", name: "Solar Pro\n79€/mois", highlight: true },
+  { key: "starter-pro", name: "Starter Pro\n119€/mois" },
   { key: "solar-pro-plus", name: "Solar Pro+\n189€/mois" },
   { key: "particulier", name: "Particulier\n99–179€" },
 ];
 
 export const compareRows: { label: string; values: Record<string, string> }[] = [
-  { label: "Projets inclus", values: { decouverte: "1", "starter-mesures": "3/mois", "starter-pro": "10/mois", "solar-pro": "3/mois", "solar-pro-plus": "10/mois", particulier: "1" } },
-  { label: "Modèle 3D photoréaliste", values: { decouverte: "✓", "starter-mesures": "✓", "starter-pro": "✓", "solar-pro": "✓", "solar-pro-plus": "✓", particulier: "✓" } },
-  { label: "Ortho 2D + MNS", values: { decouverte: "✓", "starter-mesures": "✓", "starter-pro": "✓", "solar-pro": "✓", "solar-pro-plus": "✓", particulier: "✓" } },
-  { label: "Mesures complètes", values: { decouverte: "✓", "starter-mesures": "✓", "starter-pro": "✓", "solar-pro": "✓", "solar-pro-plus": "✓", particulier: "✓" } },
-  { label: "Rapport PDF automatisé", values: { decouverte: "✓", "starter-mesures": "✓", "starter-pro": "✓", "solar-pro": "✓", "solar-pro-plus": "✓", particulier: "✓" } },
-  { label: "Mission planner Leaflet", values: { decouverte: "✓", "starter-mesures": "✓", "starter-pro": "✓", "solar-pro": "✓", "solar-pro-plus": "✓", particulier: "—" } },
-  { label: "Calepinage panneaux PV 3D", values: { decouverte: "—", "starter-mesures": "—", "starter-pro": "—", "solar-pro": "★", "solar-pro-plus": "★", particulier: "Premium" } },
-  { label: "Analyse irradiation GRASS GIS", values: { decouverte: "—", "starter-mesures": "—", "starter-pro": "—", "solar-pro": "★", "solar-pro-plus": "★", particulier: "Premium" } },
-  { label: "Analyse ombrage dynamique", values: { decouverte: "—", "starter-mesures": "—", "starter-pro": "—", "solar-pro": "★", "solar-pro-plus": "★", particulier: "Premium" } },
-  { label: "Implantation 3D objets", values: { decouverte: "—", "starter-mesures": "—", "starter-pro": "—", "solar-pro": "—", "solar-pro-plus": "—", particulier: "Premium" } },
-  { label: "Export CAO DXF/DWG", values: { decouverte: "—", "starter-mesures": "—", "starter-pro": "✓", "solar-pro": "—", "solar-pro-plus": "✓", particulier: "—" } },
-  { label: "Traitement prioritaire <12h", values: { decouverte: "—", "starter-mesures": "—", "starter-pro": "✓", "solar-pro": "—", "solar-pro-plus": "✓", particulier: "—" } },
-  { label: "Archivage modèles", values: { decouverte: "3 mois", "starter-mesures": "6 mois", "starter-pro": "12 mois", "solar-pro": "6 mois", "solar-pro-plus": "12 mois", particulier: "3 mois" } },
-  { label: "Réduction annuel", values: { decouverte: "—", "starter-mesures": "−17%", "starter-pro": "−17%", "solar-pro": "−17%", "solar-pro-plus": "−17%", particulier: "—" } },
+  { label: "Projets inclus", values: { "starter-mesures": "3/mois", "starter-pro": "10/mois", "solar-pro": "3/mois", "solar-pro-plus": "10/mois", particulier: "1" } },
+  { label: "Projets supplémentaires", values: { "starter-mesures": "19€", "starter-pro": "15€", "solar-pro": "29€", "solar-pro-plus": "22€", particulier: "—" } },
+  { label: "Modèle 3D photoréaliste", values: { "starter-mesures": "✓", "starter-pro": "✓", "solar-pro": "✓", "solar-pro-plus": "✓", particulier: "✓" } },
+  { label: "Ortho 2D + MNS", values: { "starter-mesures": "✓", "starter-pro": "✓", "solar-pro": "✓", "solar-pro-plus": "✓", particulier: "✓" } },
+  { label: "Mesures complètes", values: { "starter-mesures": "✓", "starter-pro": "✓", "solar-pro": "✓", "solar-pro-plus": "✓", particulier: "✓" } },
+  { label: "Rapport PDF automatisé", values: { "starter-mesures": "✓", "starter-pro": "✓", "solar-pro": "✓", "solar-pro-plus": "✓", particulier: "✓" } },
+  { label: "Mission planner Leaflet", values: { "starter-mesures": "✓", "starter-pro": "✓", "solar-pro": "✓", "solar-pro-plus": "✓", particulier: "—" } },
+  { label: "Calepinage panneaux PV 3D", values: { "starter-mesures": "+10€", "starter-pro": "✓", "solar-pro": "★", "solar-pro-plus": "★", particulier: "Premium" } },
+  { label: "Photos pour inspection", values: { "starter-mesures": "+5€", "starter-pro": "+5€", "solar-pro": "+5€", "solar-pro-plus": "+5€", particulier: "—" } },
+  { label: "Analyse irradiation GRASS GIS", values: { "starter-mesures": "—", "starter-pro": "—", "solar-pro": "★", "solar-pro-plus": "★", particulier: "Premium" } },
+  { label: "Analyse ombrage dynamique", values: { "starter-mesures": "—", "starter-pro": "—", "solar-pro": "★", "solar-pro-plus": "★", particulier: "Premium" } },
+  { label: "Implantation 3D objets", values: { "starter-mesures": "—", "starter-pro": "—", "solar-pro": "—", "solar-pro-plus": "—", particulier: "Premium" } },
+  { label: "Export CAO DXF/DWG", values: { "starter-mesures": "—", "starter-pro": "✓", "solar-pro": "—", "solar-pro-plus": "✓", particulier: "—" } },
+  { label: "Traitement prioritaire <12h", values: { "starter-mesures": "—", "starter-pro": "✓", "solar-pro": "—", "solar-pro-plus": "✓", particulier: "—" } },
+  { label: "Archivage modèles", values: { "starter-mesures": "6 mois", "starter-pro": "12 mois", "solar-pro": "6 mois", "solar-pro-plus": "12 mois", particulier: "3 mois" } },
+  { label: "Réduction annuel", values: { "starter-mesures": "−17%", "starter-pro": "−17%", "solar-pro": "−17%", "solar-pro-plus": "−17%", particulier: "—" } },
 ];
