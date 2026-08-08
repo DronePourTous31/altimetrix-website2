@@ -116,12 +116,13 @@ export const pricingPlans: PricingPlan[] = [
     category: "one-shot",
     segment: "particuliers",
     badge: "Vérification",
+    captationIncluse: true,
     features: [
+      "Captation terrain par nos soins (Haute-Garonne / Gers)",
       "Modèle 3D de votre toiture / terrain",
       "Métrés précis : surface, pentes, linéaires",
       "Comparatif devis vs métrés réels",
       "Rapport PDF professionnel",
-      "Tutoriel photos inclus",
     ],
     notIncluded: [
       "Analyse solaire / calepinage PV",
@@ -139,7 +140,9 @@ export const pricingPlans: PricingPlan[] = [
     segment: "particuliers",
     badge: "Recommandé",
     highlighted: true,
+    captationIncluse: true,
     features: [
+      "Captation terrain par nos soins (Haute-Garonne / Gers)",
       "Tout le Rapport Standard",
       "Calepinage PV 3D sur votre toiture réelle",
       "OU implantation 3D piscine / abri / terrasse",
@@ -158,6 +161,21 @@ export const segments = [
   { id: "particuliers", label: "Particuliers", icon: "👤" },
   { id: "compare", label: "Comparatif", icon: "⚖️" },
 ];
+
+// Captation terrain réalisée par AltiMetrix pour les rapports particuliers (one-shot).
+export const CAPTATION_PRICE_CENTS = 15000;
+
+// Périmètre d'intervention initial (vérification de faisabilité).
+export const INTERVENTION_DEPARTMENTS = [
+  { code: "31", label: "Haute-Garonne" },
+  { code: "32", label: "Gers" },
+];
+
+// True si le code postal commence par 31 ou 32 (zone couverte en standard).
+export function isInInterventionZone(codePostal: string): boolean {
+  const c = codePostal.trim();
+  return INTERVENTION_DEPARTMENTS.some((d) => c.startsWith(d.code));
+}
 
 export const roiData: Record<string, { title: string; body: string; stats: { val: string; lab: string }[] }> = {
   couvreurs: {

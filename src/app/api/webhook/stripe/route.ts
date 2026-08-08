@@ -117,6 +117,24 @@ export async function POST(req: Request) {
       const planId = metadata.plan_id;
       if (!planId || !userId) break;
 
+      // Rapport particulier one-shot (commande validée par l'admin) :
+      // on marque la demande payée et on enregistre la commande, sans
+      // activer d'abonnement (abonnement_actif reste false).
+      if (metadata.type === "particulier" && metadata.demande_id) {
+        logErr("update demande payee", await supabase
+          .from("demandes_particuliers")
+          .update({ statut: "payee" })
+          .eq("id", metadata.demande_id));
+
+        logErr("insert commande particulier", await supabase.from("commandes").insert({
+          user_id: userId,
+          stripe_session_id: session.id,
+          montant: session.amount_total || 0,
+          statut: "payee",
+        }));
+        break;
+      }
+
       const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
 
       // Récupérer l'abonnement Stripe si présent

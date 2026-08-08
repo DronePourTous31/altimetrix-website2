@@ -85,6 +85,7 @@ export interface PricingPlan {
   notIncluded?: string[];
   nbProjets?: number;
   costPerProject?: number;
+  captationIncluse?: boolean;
   stripePriceId?: string;
   stripeAnnualPriceId?: string;
 }

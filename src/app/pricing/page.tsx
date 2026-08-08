@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, XCircle, ChevronRight } from "lucide-react";
+import { CheckCircle2, XCircle, ChevronRight, X } from "lucide-react";
 import {
   pricingPlans, segments, roiData, concurData,
   addons, guarantees, faqItems, compareColumns, compareRows,
+  CAPTATION_PRICE_CENTS, INTERVENTION_DEPARTMENTS, isInInterventionZone,
 } from "@/data/pricing";
 import { CheckoutButton } from "@/components/CheckoutButton";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 import type { PricingPlan } from "@/lib/types";
 
 export default function PricingPage() {
@@ -262,6 +265,7 @@ function ParticuliersSection({ plans }: { plans: PricingPlan[] }) {
   const standard = plans.find(p => p.id === "particulier-standard");
   const premium = plans.find(p => p.id === "particulier-premium");
   const roi = roiData.particuliers;
+  const [orderPlan, setOrderPlan] = useState<PricingPlan | null>(null);
 
   return (
     <section className="pb-12">
@@ -281,10 +285,25 @@ function ParticuliersSection({ plans }: { plans: PricingPlan[] }) {
           <p className="text-sm text-anthracite-800">Toiture, solaire, piscine, terrasse — obtenez les vrais métrés pour comparer les devis et négocier en connaissance de cause.</p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4 max-w-3xl mx-auto">
-          {standard && <PricingCard plan={standard} annual={false} ctaLabel="Commander mon rapport →" />}
-          {premium && <PricingCard plan={premium} annual={false} ctaLabel="Commander mon rapport Premium →" highlighted />}
+        {/* Périmètre d'intervention */}
+        <div className="max-w-3xl mx-auto mb-6 flex flex-wrap gap-2 justify-center">
+          {INTERVENTION_DEPARTMENTS.map((d) => (
+            <span key={d.code} className="text-xs px-3 py-1.5 rounded-full border border-anthracite-600 text-gray-300">
+              📍 {d.code} — {d.label}
+            </span>
+          ))}
+          <span className="text-xs px-3 py-1.5 rounded-full border border-anthracite-600 text-gray-500">
+            Hors zone ? Contactez-nous pour un devis de déplacement
+          </span>
         </div>
+
+        <div className="grid md:grid-cols-2 gap-4 max-w-3xl mx-auto">
+          {standard && <PricingCard plan={standard} annual={false} ctaLabel="Commander mon rapport →" onOrder={setOrderPlan} />}
+          {premium && <PricingCard plan={premium} annual={false} ctaLabel="Commander mon rapport Premium →" highlighted onOrder={setOrderPlan} />}
+        </div>
+
+        {/* Modal : adresse pour vérification de faisabilité */}
+        {orderPlan && <ParticulierOrderModal plan={orderPlan} onClose={() => setOrderPlan(null)} />}
 
         {/* ROI */}
         <div className="max-w-3xl mx-auto mt-8 p-6 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl text-center">
@@ -301,6 +320,154 @@ function ParticuliersSection({ plans }: { plans: PricingPlan[] }) {
         </div>
       </div>
     </section>
+  );
+}
+
+/* ─── MODAL COMMANDE PARTICULIER (adresse + faisabilité) ─── */
+function ParticulierOrderModal({ plan, onClose }: { plan: PricingPlan; onClose: () => void }) {
+  const router = useRouter();
+  const [adresse, setAdresse] = useState("");
+  const [codePostal, setCodePostal] = useState("");
+  const [ville, setVille] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+
+  const captation = CAPTATION_PRICE_CENTS / 100;
+  const total = plan.price + captation;
+  const inZone = codePostal.trim().length > 0 ? isInInterventionZone(codePostal) : null;
+
+  const submit = async () => {
+    if (!adresse.trim() || !codePostal.trim() || !ville.trim()) {
+      setError("Merci de renseigner l'adresse complète.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const { data: { session } } = await createClient().auth.getSession();
+      const token = session?.access_token;
+      if (!token) { router.push("/auth/login"); return; }
+      const res = await fetch("/api/demandes-particuliers", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId: plan.id,
+          adresse: adresse.trim(),
+          codePostal: codePostal.trim(),
+          ville: ville.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setError(j.error || "Une erreur est survenue. Réessayez.");
+        return;
+      }
+      setDone(true);
+    } catch {
+      setError("Une erreur est survenue. Réessayez.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60" onClick={done ? undefined : onClose}>
+      <div className="w-full max-w-md bg-anthracite-800 rounded-2xl border border-anthracite-600 p-6" onClick={(e) => e.stopPropagation()}>
+        {done ? (
+          <div className="text-center py-4">
+            <div className="w-12 h-12 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-2xl mx-auto mb-4">✓</div>
+            <h3 className="font-bold text-lg mb-2">Demande envoyée !</h3>
+            <p className="text-sm text-gray-400 leading-relaxed">
+              Votre demande de rapport {plan.name} a bien été enregistrée. Nous vérifions la faisabilité
+              de la captation à l&apos;adresse indiquée et revenons vers vous sous 24h avec le lien de paiement.
+            </p>
+            <button
+              onClick={onClose}
+              className="mt-6 px-5 py-2.5 text-sm font-medium rounded-xl gradient-cyan text-white hover:opacity-90 transition-all"
+            >
+              Fermer
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="font-bold text-lg">{plan.name}</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {plan.price}€ rapport + {captation}€ captation terrain ={" "}
+                  <span className="text-cyan-400 font-semibold">{total}€ HT</span>
+                </p>
+              </div>
+              <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors" aria-label="Fermer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-400 mb-4 leading-relaxed">
+              Indiquez l&apos;adresse du bien pour vérifier la faisabilité du vol drone
+              (périmètre : {INTERVENTION_DEPARTMENTS.map((d) => `${d.code} ${d.label}`).join(", ")}).
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Adresse (numéro et rue)</label>
+                <input
+                  value={adresse}
+                  onChange={(e) => setAdresse(e.target.value)}
+                  placeholder="12 rue des Lilas"
+                  className="w-full px-3 py-2.5 rounded-xl bg-anthracite-900 border border-anthracite-600 text-sm placeholder:text-gray-600 focus:border-cyan-500 outline-none transition-colors"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Code postal</label>
+                  <input
+                    value={codePostal}
+                    onChange={(e) => setCodePostal(e.target.value)}
+                    placeholder="31400"
+                    inputMode="numeric"
+                    className="w-full px-3 py-2.5 rounded-xl bg-anthracite-900 border border-anthracite-600 text-sm placeholder:text-gray-600 focus:border-cyan-500 outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Ville</label>
+                  <input
+                    value={ville}
+                    onChange={(e) => setVille(e.target.value)}
+                    placeholder="Toulouse"
+                    className="w-full px-3 py-2.5 rounded-xl bg-anthracite-900 border border-anthracite-600 text-sm placeholder:text-gray-600 focus:border-cyan-500 outline-none transition-colors"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {inZone === false && (
+              <div className="mt-3 p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-300 leading-relaxed">
+                ⚠️ Ce code postal semble hors de notre périmètre standard
+                ({INTERVENTION_DEPARTMENTS.map((d) => `${d.code} ${d.label}`).join(", ")}).
+                La demande sera tout de même transmise — un devis de déplacement vous sera proposé si nécessaire.
+              </div>
+            )}
+
+            {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
+
+            <button
+              onClick={submit}
+              disabled={loading}
+              className={`mt-5 w-full py-3 text-sm font-medium rounded-xl transition-all ${
+                loading ? "opacity-50 pointer-events-none" : "gradient-cyan text-white hover:opacity-90 hover:shadow-lg hover:shadow-cyan-500/25"
+              }`}
+            >
+              {loading ? "Envoi..." : "Envoyer ma demande →"}
+            </button>
+            <p className="text-[10px] text-gray-500 mt-3 text-center">
+              Aucun paiement maintenant — vous recevrez un lien de paiement sécurisé après validation de la faisabilité.
+            </p>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -361,7 +528,7 @@ function ComparatifSection() {
 
 /* ─── PRICING CARD ─── */
 function PricingCard({
-  plan, annual, ctaLabel, highlighted, calepinage, onToggleCalepinage, trialCta,
+  plan, annual, ctaLabel, highlighted, calepinage, onToggleCalepinage, trialCta, onOrder,
 }: {
   plan: PricingPlan;
   annual: boolean;
@@ -370,6 +537,7 @@ function PricingCard({
   calepinage?: boolean;
   onToggleCalepinage?: () => void;
   trialCta?: boolean;
+  onOrder?: (plan: PricingPlan) => void;
 }) {
   const price = annual && plan.annualPrice ? plan.annualPrice : plan.price;
   const effectivePrice = calepinage ? price + 10 : price;
@@ -381,6 +549,12 @@ function PricingCard({
   // Avec l'option Calepinage 3D cochée, « Starter Mesures » devient
   // « Starter Mesures+ » (le calepinage est alors inclus dans l'abonnement).
   const displayName = plan.id === "starter-mesures" && calepinage ? "Starter Mesures+" : plan.name;
+
+  // Rapports particuliers : la captation terrain (+150€) est incluse d'office.
+  // On affiche la décomposition et le total, et la commande passe par le
+  // formulaire d'adresse (vérification de faisabilité) au lieu du checkout direct.
+  const captation = plan.captationIncluse ? CAPTATION_PRICE_CENTS / 100 : 0;
+  const totalPrice = displayPrice + captation;
 
   return (
     <div className={`relative p-6 rounded-2xl border flex flex-col ${
@@ -403,9 +577,15 @@ function PricingCard({
       <p className="text-xs text-gray-400 font-light leading-relaxed mb-4">{plan.description}</p>
 
       <div className="mb-2">
-        <span className="text-3xl font-bold text-cyan-400">{displayPrice}€</span>
+        <span className="text-3xl font-bold text-cyan-400">{totalPrice}€</span>
         <span className="text-xs text-gray-500 ml-1">{plan.period === "once" ? "HT · projet unique" : "/mois HT"}</span>
       </div>
+      {captation > 0 && (
+        <div className="text-xs text-gray-500 mb-1">
+          dont <span className="text-gray-300">{displayPrice}€</span> rapport +{" "}
+          <span className="text-gray-300">{captation}€</span> captation terrain
+        </div>
+      )}
       {plan.nbProjets && (
         <div className="text-xs text-cyan-400 mb-4">
           {plan.nbProjets} projet{plan.nbProjets > 1 ? "s" : ""}/mois <span className="text-gray-500">· soit {Math.round(effectivePrice / plan.nbProjets)}€/projet</span>
@@ -466,6 +646,17 @@ function PricingCard({
         >
           {ctaLabel}
         </Link>
+      ) : onOrder ? (
+        <button
+          onClick={() => onOrder(plan)}
+          className={`block w-full py-3 text-center text-sm font-medium rounded-xl transition-all ${
+            highlighted
+              ? "gradient-cyan text-white hover:opacity-90 hover:shadow-lg hover:shadow-cyan-500/25"
+              : "bg-transparent border border-anthracite-600 text-gray-300 hover:border-cyan-500 hover:text-cyan-400"
+          }`}
+        >
+          {ctaLabel}
+        </button>
       ) : (
         <CheckoutButton planId={plan.id} annual={annual} calepinage={calepinage} highlighted={highlighted}>
           {ctaLabel}

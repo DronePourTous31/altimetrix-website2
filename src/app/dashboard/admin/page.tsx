@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Loader2, AlertCircle, TrendingUp, Users, FolderOpen, CheckCircle2, CreditCard, Download, BarChart3 } from "lucide-react";
+import { Shield, Loader2, AlertCircle, TrendingUp, Users, FolderOpen, CheckCircle2, CreditCard, Download, BarChart3, MapPin, X } from "lucide-react";
 import { getAuthToken } from "@/lib/supabase/client";
 import {
   ResponsiveContainer,
@@ -27,6 +27,13 @@ const STATUS_COLORS: Record<string, string> = {
   erreur: "#ef4444",
 };
 
+const DEMANDE_STATUS: Record<string, { label: string; cls: string }> = {
+  en_attente: { label: "En attente", cls: "bg-cyan-500/10 text-cyan-400" },
+  validee: { label: "Validée", cls: "bg-green-500/10 text-green-400" },
+  refusee: { label: "Refusée", cls: "bg-red-500/10 text-red-400" },
+  payee: { label: "Payée", cls: "bg-purple-500/10 text-purple-400" },
+};
+
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
     <div className="bg-anthracite-800/30 border border-anthracite-700 rounded-xl p-4">
@@ -37,11 +44,39 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
+interface Demande {
+  id: string;
+  plan_id: string;
+  plan_nom: string;
+  adresse: string;
+  code_postal: string;
+  ville: string;
+  hors_zone: boolean;
+  statut: string;
+  stripe_session_id: string | null;
+  created_at: string;
+  email: string;
+  client: { prenom?: string; nom?: string } | null;
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
+  const [demandes, setDemandes] = useState<Demande[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
+
+  const loadDemandes = (token: string) => {
+    return fetch("/api/admin/demandes", { headers: { Authorization: `Bearer ${token}` } })
+      .then(async (res) => {
+        if (res.status === 403) { router.push("/dashboard"); return; }
+        const json = await res.json();
+        if (json.error) { setError(json.error); return; }
+        setDemandes(json.demandes || []);
+      });
+  };
 
   useEffect(() => {
     getAuthToken().then(async (token) => {
@@ -53,9 +88,31 @@ export default function AdminDashboard() {
       const json = await res.json();
       if (json.error) setError(json.error);
       else setData(json);
+      await loadDemandes(token);
       setLoading(false);
     });
   }, []);
+
+  const decideDemande = async (id: string, action: "valider" | "refuser") => {
+    setActionBusy(id);
+    setActionError("");
+    const token = await getAuthToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/admin/demandes/${id}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setActionError(json.error || "Erreur lors de l'action"); return; }
+      await loadDemandes(token);
+    } catch {
+      setActionError("Erreur réseau");
+    } finally {
+      setActionBusy(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -323,6 +380,93 @@ export default function AdminDashboard() {
           </table>
         </div>
         <p className="text-xs text-gray-500 mt-3">{clients.length} clients</p>
+      </div>
+
+      {/* Demandes particuliers */}
+      <div className="mt-8 bg-anthracite-800/30 border border-anthracite-700 rounded-xl p-6">
+        <h2 className="text-sm font-semibold mb-1 flex items-center gap-2">
+          <MapPin className="w-4 h-4 text-cyan-400" /> Demandes de rapport particuliers (one-shot + captation)
+        </h2>
+        <p className="text-xs text-gray-500 mb-4">
+          Validez la faisabilité du vol à l&apos;adresse indiquée → un email avec lien de paiement (rapport + captation 150€) est envoyé au client.
+        </p>
+        {actionError && <p className="text-xs text-red-400 mb-3">{actionError}</p>}
+        {demandes.length === 0 ? (
+          <p className="text-sm text-gray-500">Aucune demande pour le moment.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-gray-500 border-b border-anthracite-700">
+                  <th className="text-left py-2 px-2">Client</th>
+                  <th className="text-left py-2 px-2">Rapport</th>
+                  <th className="text-left py-2 px-2">Adresse</th>
+                  <th className="text-center py-2 px-2">Statut</th>
+                  <th className="text-center py-2 px-2">Date</th>
+                  <th className="text-right py-2 px-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {demandes.map((d: Demande) => (
+                  <tr key={d.id} className="border-b border-anthracite-700/50 hover:bg-anthracite-800/50">
+                    <td className="py-2.5 px-2">
+                      <div className="font-medium">
+                        {d.client ? `${d.client.prenom} ${d.client.nom}` : "—"}
+                      </div>
+                      <div className="text-xs text-gray-500">{d.email}</div>
+                    </td>
+                    <td className="py-2.5 px-2">{d.plan_nom}</td>
+                    <td className="py-2.5 px-2">
+                      <div>{d.adresse}</div>
+                      <div className="text-xs text-gray-500">{d.code_postal} {d.ville}</div>
+                      {d.hors_zone && (
+                        <span className="text-[10px] bg-amber-500/10 text-amber-300 px-1.5 py-0.5 rounded-full inline-block mt-0.5">
+                          Hors zone
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-2 text-center">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${DEMANDE_STATUS[d.statut]?.cls || "bg-gray-500/10 text-gray-400"}`}>
+                        {DEMANDE_STATUS[d.statut]?.label || d.statut}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-2 text-center text-gray-400 text-xs">
+                      {new Date(d.created_at).toLocaleDateString("fr-FR")}
+                    </td>
+                    <td className="py-2.5 px-2 text-right">
+                      {d.statut === "en_attente" ? (
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={() => decideDemande(d.id, "valider")}
+                            disabled={actionBusy === d.id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-green-500/10 text-green-400 border border-green-500/30 hover:bg-green-500/20 transition-all disabled:opacity-50"
+                          >
+                            {actionBusy === d.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                            Valider
+                          </button>
+                          <button
+                            onClick={() => decideDemande(d.id, "refuser")}
+                            disabled={actionBusy === d.id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-all disabled:opacity-50"
+                          >
+                            <X className="w-3 h-3" />
+                            Refuser
+                          </button>
+                        </div>
+                      ) : d.statut === "validee" ? (
+                        <span className="text-xs text-gray-400">
+                          Lien de paiement envoyé{d.stripe_session_id ? " ✓" : ""}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-600">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="mt-6 flex gap-3">
