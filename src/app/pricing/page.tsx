@@ -380,7 +380,8 @@ function ParticulierOrderModal({ plan, onClose }: { plan: PricingPlan; onClose: 
             <h3 className="font-bold text-lg mb-2">Demande envoyée !</h3>
             <p className="text-sm text-gray-400 leading-relaxed">
               Votre demande de rapport {plan.name} a bien été enregistrée. Nous vérifions la faisabilité
-              de la captation à l&apos;adresse indiquée et revenons vers vous sous 24h avec le lien de paiement.
+              de la captation à l&apos;adresse indiquée et vous enverrons le lien de paiement
+              dans votre espace « Mon compte » une fois la validation effectuée (sous 24h).
             </p>
             <button
               onClick={onClose}

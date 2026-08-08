@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { User, CreditCard, Loader2, ExternalLink, History, Receipt } from "lucide-react";
+import { User, CreditCard, Loader2, ExternalLink, History, Receipt, MapPin, ArrowRight } from "lucide-react";
 import { getAuthToken } from "@/lib/supabase/client";
 
 interface ForfaitQuota {
@@ -70,6 +70,25 @@ interface Commande {
   libelle: string;
 }
 
+interface DemandeParticulier {
+  id: string;
+  plan_nom: string;
+  adresse: string;
+  code_postal: string;
+  ville: string;
+  hors_zone: boolean;
+  statut: "en_attente" | "validee" | "refusee" | "payee";
+  paiement_url: string | null;
+  created_at: string;
+}
+
+const DEMANDE_LABEL: Record<string, string> = {
+  en_attente: "En attente de validation",
+  validee: "Faisabilité validée — paiement en attente",
+  refusee: "Refusée",
+  payee: "Payée",
+};
+
 const eur = (cents: number) =>
   new Intl.NumberFormat("fr-FR", {
     style: "currency",
@@ -88,20 +107,26 @@ export default function MonComptePage() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [commandes, setCommandes] = useState<Commande[]>([]);
+  const [demandes, setDemandes] = useState<DemandeParticulier[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     getAuthToken().then(async (token) => {
       if (!token) return router.push("/auth/login");
       const headers = { Authorization: `Bearer ${token}` };
-      const [meRes, cmdRes] = await Promise.all([
+      const [meRes, cmdRes, demRes] = await Promise.all([
         fetch("/api/me", { headers }),
         fetch("/api/commandes", { headers }),
+        fetch("/api/demandes-particuliers", { headers }),
       ]);
       if (meRes.ok) setProfile((await meRes.json()) as Profile);
       if (cmdRes.ok) {
         const data = (await cmdRes.json()) as Commande[];
         setCommandes(Array.isArray(data) ? data : []);
+      }
+      if (demRes.ok) {
+        const data = await demRes.json();
+        setDemandes(Array.isArray(data?.demandes) ? data.demandes : []);
       }
       setLoading(false);
     });
@@ -374,6 +399,62 @@ export default function MonComptePage() {
                           : "En attente"}
                     </span>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Demandes de rapport particuliers */}
+        {demandes.length > 0 && (
+          <div className="bg-anthracite-800/30 border border-anthracite-700 rounded-xl p-6">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-cyan-400" /> Mes demandes de rapport
+            </h2>
+            <div className="space-y-2">
+              {demandes.map((d) => (
+                <div
+                  key={d.id}
+                  className="p-4 bg-anthracite-800 rounded-xl border border-anthracite-700"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium">{d.plan_nom}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {d.adresse}, {d.code_postal} {d.ville}
+                        {d.hors_zone && <span className="text-amber-400"> · hors périmètre standard</span>}
+                      </p>
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        Demande du {new Date(d.created_at).toLocaleDateString("fr-FR")}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 text-xs px-2.5 py-1 rounded-full ${
+                        d.statut === "payee"
+                          ? "bg-green-500/10 text-green-400"
+                          : d.statut === "validee"
+                            ? "bg-cyan-500/10 text-cyan-400"
+                            : d.statut === "refusee"
+                              ? "bg-red-500/10 text-red-400"
+                              : "bg-amber-500/10 text-amber-400"
+                      }`}
+                    >
+                      {DEMANDE_LABEL[d.statut] || d.statut}
+                    </span>
+                  </div>
+                  {d.statut === "validee" && d.paiement_url && (
+                    <div className="mt-3 pt-3 border-t border-anthracite-700 flex items-center justify-between gap-3 flex-wrap">
+                      <p className="text-xs text-gray-400">
+                        La faisabilité du vol est confirmée. Réglez votre rapport pour lancer la captation.
+                      </p>
+                      <a
+                        href={d.paiement_url}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-xl gradient-cyan text-white hover:opacity-90 transition-all shrink-0"
+                      >
+                        Payer <ArrowRight className="w-4 h-4" />
+                      </a>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
