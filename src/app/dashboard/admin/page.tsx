@@ -503,22 +503,26 @@ export default function AdminDashboard() {
                           Lien de paiement envoyé{d.stripe_session_id ? " ✓" : ""}
                         </span>
                       ) : d.statut === "payee" && !d.projet ? (
-                        <button
-                          onClick={() => createProjet(d.id)}
-                          disabled={actionBusy === d.id}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/30 hover:bg-purple-500/20 transition-all disabled:opacity-50"
-                        >
-                          {actionBusy === d.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <FolderOpen className="w-3 h-3" />}
-                          Créer le projet
-                        </button>
+                        <div className="flex justify-center">
+                          <button
+                            onClick={() => createProjet(d.id)}
+                            disabled={actionBusy === d.id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/30 hover:bg-purple-500/20 transition-all disabled:opacity-50"
+                          >
+                            {actionBusy === d.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <FolderOpen className="w-3 h-3" />}
+                            Créer le projet
+                          </button>
+                        </div>
                       ) : d.statut === "payee" && d.projet ? (
-                        <button
-                          onClick={() => toggleExpand(d.id)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 transition-all"
-                        >
-                          {expanded === d.id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                          {expanded === d.id ? "Masquer" : "Traiter"}
-                        </button>
+                        <div className="flex justify-center">
+                          <button
+                            onClick={() => toggleExpand(d.id)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 transition-all"
+                          >
+                            {expanded === d.id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            {expanded === d.id ? "Masquer" : "Traiter"}
+                          </button>
+                        </div>
                       ) : (
                         <span className="text-xs text-gray-600">—</span>
                       )}

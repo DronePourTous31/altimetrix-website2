@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 import {
   ArrowRight,
   MapPin,
@@ -12,7 +13,38 @@ import {
   Download,
 } from "lucide-react";
 
+const DEMO_DATA_URL =
+  "https://pub-0459c8bf6e9348e592f4decd8b6bab91.r2.dev/DEMOS/DEMO3";
+const SHARED_URL =
+  "https://pub-0459c8bf6e9348e592f4decd8b6bab91.r2.dev/altimetrix/shared";
+
 export default function DroneAnnotatePage() {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    const sendInit = () => {
+      iframe.contentWindow?.postMessage(
+        {
+          type: "alti-init",
+          dataUrl: DEMO_DATA_URL,
+          clientRoot: "DEMO3",
+          sharedUrl: SHARED_URL,
+        },
+        "*"
+      );
+    };
+
+    iframe.addEventListener("load", sendInit);
+    const fallback = window.setTimeout(sendInit, 1500);
+    return () => {
+      iframe.removeEventListener("load", sendInit);
+      window.clearTimeout(fallback);
+    };
+  }, []);
+
   return (
     <>
       <section className="pt-32 pb-16 relative">
@@ -63,12 +95,12 @@ export default function DroneAnnotatePage() {
             </div>
             <div className="relative w-full" style={{ height: "75vh", minHeight: "500px" }}>
               <iframe
+                ref={iframeRef}
                 src="https://pub-0459c8bf6e9348e592f4decd8b6bab91.r2.dev/altimetrix/shared/drone-annotate.html?client=DEMO3"
                 className="absolute inset-0 w-full h-full"
                 style={{ border: "none" }}
                 title="Drone-Annotate AltiMetrix"
                 allow="fullscreen; geolocation"
-                loading="lazy"
               />
             </div>
           </div>
