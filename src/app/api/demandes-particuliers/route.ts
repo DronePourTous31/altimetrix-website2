@@ -54,6 +54,17 @@ export async function GET(req: Request) {
   const planNomMap: Record<string, string> = {};
   pricingPlans.forEach((p) => { planNomMap[p.id] = p.name; });
 
+  // Projets liés aux demandes (traitement lancé par l'admin).
+  const projetIds = [...new Set((demandes || []).map((d) => d.projet_id).filter(Boolean))] as string[];
+  const projetsMap: Record<string, { id: string; nom: string; statut: string; type_analyse: string; adresse: string | null; created_at: string; delivered_at: string | null }> = {};
+  if (projetIds.length > 0) {
+    const { data: projets } = await admin
+      .from("projets")
+      .select("id, nom, statut, type_analyse, adresse, created_at, delivered_at")
+      .in("id", projetIds);
+    (projets || []).forEach((p) => { projetsMap[p.id] = p; });
+  }
+
   const stripe = getStripe();
   const rows = [];
   for (const d of demandes || []) {
@@ -76,11 +87,13 @@ export async function GET(req: Request) {
       code_postal: d.code_postal,
       ville: d.ville,
       hors_zone: d.hors_zone,
+      description: d.description || null,
       statut: d.statut,
       stripe_session_id: d.stripe_session_id,
       paiement_url: paiementUrl,
       created_at: d.created_at,
       updated_at: d.updated_at,
+      projet: d.projet_id ? projetsMap[d.projet_id] || null : null,
     });
   }
 
@@ -106,7 +119,7 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Non authé" }, { status: 401 });
 
-  let body: { planId?: string; adresse?: string; codePostal?: string; ville?: string };
+  let body: { planId?: string; adresse?: string; codePostal?: string; ville?: string; description?: string };
   try {
     body = await req.json();
   } catch {
@@ -135,6 +148,7 @@ export async function POST(req: Request) {
     code_postal: body.codePostal.trim(),
     ville: body.ville.trim(),
     hors_zone: horsZone,
+    description: body.description?.trim() || null,
     statut: "en_attente",
   }).select("id").single();
 

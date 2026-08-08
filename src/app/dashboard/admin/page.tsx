@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Loader2, AlertCircle, TrendingUp, Users, FolderOpen, CheckCircle2, CreditCard, Download, BarChart3, MapPin, X } from "lucide-react";
+import { Shield, Loader2, AlertCircle, TrendingUp, Users, FolderOpen, CheckCircle2, CreditCard, Download, BarChart3, MapPin, X, ChevronDown, ChevronUp, ExternalLink, FileText, Upload } from "lucide-react";
 import { getAuthToken } from "@/lib/supabase/client";
+import UploadZone from "@/components/projects/UploadZone";
 import {
   ResponsiveContainer,
   BarChart,
@@ -52,12 +53,21 @@ interface Demande {
   code_postal: string;
   ville: string;
   hors_zone: boolean;
+  description: string | null;
   statut: string;
   stripe_session_id: string | null;
   created_at: string;
   email: string;
   client: { prenom?: string; nom?: string } | null;
+  projet: { id: string; nom: string; statut: string; type_analyse: string; adresse: string | null; created_at: string; delivered_at: string | null; rapports_pdf?: { nom: string; url: string }[] } | null;
 }
+
+const PROJET_LABEL: Record<string, { label: string; cls: string }> = {
+  upload_en_attente: { label: "Photos en attente", cls: "bg-cyan-500/10 text-cyan-400" },
+  en_traitement: { label: "En traitement", cls: "bg-amber-500/10 text-amber-400" },
+  livre: { label: "Livré", cls: "bg-green-500/10 text-green-400" },
+  erreur: { label: "Erreur", cls: "bg-red-500/10 text-red-400" },
+};
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -67,6 +77,7 @@ export default function AdminDashboard() {
   const [error, setError] = useState("");
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const loadDemandes = (token: string) => {
     return fetch("/api/admin/demandes", { headers: { Authorization: `Bearer ${token}` } })
@@ -113,6 +124,29 @@ export default function AdminDashboard() {
       setActionBusy(null);
     }
   };
+
+  const createProjet = async (id: string) => {
+    setActionBusy(id);
+    setActionError("");
+    const token = await getAuthToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/admin/demandes/${id}/projet`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (!res.ok) { setActionError(json.error || "Erreur lors de la création du projet"); return; }
+      await loadDemandes(token);
+      setExpanded(id);
+    } catch {
+      setActionError("Erreur réseau");
+    } finally {
+      setActionBusy(null);
+    }
+  };
+
+  const toggleExpand = (id: string) => setExpanded((cur) => (cur === id ? null : id));
 
   if (loading) {
     return (
@@ -408,7 +442,8 @@ export default function AdminDashboard() {
               </thead>
               <tbody>
                 {demandes.map((d: Demande) => (
-                  <tr key={d.id} className="border-b border-anthracite-700/50 hover:bg-anthracite-800/50">
+                  <Fragment key={d.id}>
+                  <tr className="border-b border-anthracite-700/50 hover:bg-anthracite-800/50">
                     <td className="py-2.5 px-2">
                       <div className="font-medium">
                         {d.client ? `${d.client.prenom} ${d.client.nom}` : "—"}
@@ -424,11 +459,21 @@ export default function AdminDashboard() {
                           Hors zone
                         </span>
                       )}
+                      {d.description && (
+                        <div className="text-xs text-gray-400 mt-1 italic max-w-[280px] truncate" title={d.description}>
+                          « {d.description} »
+                        </div>
+                      )}
                     </td>
                     <td className="py-2.5 px-2 text-center">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${DEMANDE_STATUS[d.statut]?.cls || "bg-gray-500/10 text-gray-400"}`}>
                         {DEMANDE_STATUS[d.statut]?.label || d.statut}
                       </span>
+                      {d.projet && (
+                        <span className={`block mt-1 text-[10px] px-2 py-0.5 rounded-full ${PROJET_LABEL[d.projet.statut]?.cls || "bg-gray-500/10 text-gray-400"}`}>
+                          {PROJET_LABEL[d.projet.statut]?.label || d.projet.statut}
+                        </span>
+                      )}
                     </td>
                     <td className="py-2.5 px-2 text-center text-gray-400 text-xs">
                       {new Date(d.created_at).toLocaleDateString("fr-FR")}
@@ -457,11 +502,43 @@ export default function AdminDashboard() {
                         <span className="text-xs text-gray-400">
                           Lien de paiement envoyé{d.stripe_session_id ? " ✓" : ""}
                         </span>
+                      ) : d.statut === "payee" && !d.projet ? (
+                        <button
+                          onClick={() => createProjet(d.id)}
+                          disabled={actionBusy === d.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/30 hover:bg-purple-500/20 transition-all disabled:opacity-50"
+                        >
+                          {actionBusy === d.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <FolderOpen className="w-3 h-3" />}
+                          Créer le projet
+                        </button>
+                      ) : d.statut === "payee" && d.projet ? (
+                        <button
+                          onClick={() => toggleExpand(d.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 transition-all"
+                        >
+                          {expanded === d.id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          {expanded === d.id ? "Masquer" : "Traiter"}
+                        </button>
                       ) : (
                         <span className="text-xs text-gray-600">—</span>
                       )}
                     </td>
                   </tr>
+                  {expanded === d.id && d.projet && (
+                    <tr className="border-b border-anthracite-700/50 bg-anthracite-800/20">
+                      <td colSpan={6} className="py-4 px-4">
+                        <DemandeProjetPanel
+                          projet={d.projet}
+                          clientName={d.client ? `${d.client.prenom}_${d.client.nom}` : ""}
+                          onRefresh={async () => {
+                            const token = await getAuthToken();
+                            if (token) await loadDemandes(token);
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -482,6 +559,225 @@ export default function AdminDashboard() {
         >
           <Download className="w-4 h-4" /> Export Excel
         </button>
+      </div>
+    </div>
+  );
+}
+
+type CategorizedFile = { file: File; category: "NADIR" | "OBLIQUE1" | "OBLIQUE2" | "OBLIQUE3" | "OBLIQUE4" };
+
+function errMessage(e: unknown): string {
+  return e instanceof Error ? e.message : "Erreur inattendue";
+}
+
+/* ─── PANEL DE TRAITEMENT D'UNE DEMANDE PAYÉE ───
+ * L'admin uploade les photos du vol (comme un projet classique) puis les
+ * rapports PDF d'analyse. Les photos passent par /api/admin/upload (service
+ * role : le projet appartient au client) + confirm-upload. Les PDF vont sur
+ * le bucket public R2 et sont stockés dans projets.rapports_pdf. */
+function DemandeProjetPanel({
+  projet,
+  clientName,
+  onRefresh,
+}: {
+  projet: { id: string; nom: string; statut: string; type_analyse: string; adresse: string | null; created_at: string; delivered_at: string | null; rapports_pdf?: { nom: string; url: string }[] };
+  clientName: string;
+  onRefresh: () => Promise<void>;
+}) {
+  const [files, setFiles] = useState<CategorizedFile[]>([]);
+  const [pdfFiles, setPdfFiles] = useState<File[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+  const [rapports, setRapports] = useState<{ nom: string; url: string }[]>(projet.rapports_pdf || []);
+
+  const uploadPhotos = async () => {
+    if (files.length === 0) { setErr("Sélectionnez au moins une photo."); return; }
+    setBusy(true); setErr(""); setMsg(""); setProgress(0);
+    const token = await getAuthToken();
+    if (!token) return;
+    try {
+      let uploaded = 0;
+      for (const cf of files) {
+        const formData = new FormData();
+        formData.append("file", cf.file);
+        formData.append("projetId", projet.id);
+        formData.append("category", cf.category);
+        formData.append("clientName", clientName);
+        formData.append("projectName", projet.nom);
+        const res = await fetch("/api/admin/upload", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        if (!res.ok) throw new Error("Erreur upload photo");
+        uploaded++;
+        setProgress(Math.round((uploaded / files.length) * 100));
+      }
+      const confirm = await fetch("/api/confirm-upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ projetId: projet.id, clientName, projectName: projet.nom }),
+      });
+      if (!confirm.ok) throw new Error("Erreur confirmation upload");
+      setMsg("Photos envoyées — le projet est en cours de traitement.");
+      setFiles([]);
+      await onRefresh();
+    } catch (e: unknown) {
+      setErr(errMessage(e) || "Erreur upload");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const uploadRapport = async (file: File) => {
+    const token = await getAuthToken();
+    if (!token) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("projetId", projet.id);
+    formData.append("clientName", clientName);
+    formData.append("projectName", projet.nom);
+    const res = await fetch("/api/admin/rapports", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Erreur upload rapport");
+    setRapports(json.rapports || []);
+  };
+
+  const uploadPdfs = async () => {
+    if (pdfFiles.length === 0) { setErr("Sélectionnez au moins un fichier PDF."); return; }
+    setBusy(true); setErr(""); setMsg("");
+    try {
+      for (const f of pdfFiles) await uploadRapport(f);
+      setMsg("Rapport(s) PDF ajouté(s).");
+      setPdfFiles([]);
+      await onRefresh();
+    } catch (e: unknown) {
+      setErr(errMessage(e) || "Erreur upload rapport");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeRapport = async (nom: string) => {
+    const token = await getAuthToken();
+    if (!token) return;
+    setErr("");
+    try {
+      const res = await fetch("/api/admin/rapports", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ projetId: projet.id, nom }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Erreur suppression");
+      setRapports(json.rapports || []);
+      await onRefresh();
+    } catch (e: unknown) {
+      setErr(errMessage(e) || "Erreur suppression rapport");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <FolderOpen className="w-5 h-5 text-cyan-400" />
+          <div>
+            <p className="font-medium text-sm">{projet.nom}</p>
+            <p className="text-xs text-gray-500">
+              Projet créé le {new Date(projet.created_at).toLocaleDateString("fr-FR")}
+              {projet.adresse && ` — ${projet.adresse}`}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className={`text-xs px-2.5 py-1 rounded-full ${PROJET_LABEL[projet.statut]?.cls || "bg-gray-500/10 text-gray-400"}`}>
+            {PROJET_LABEL[projet.statut]?.label || projet.statut}
+          </span>
+          {projet.statut === "livre" && (
+            <a
+              href={`/dashboard/projets/${projet.id}`}
+              className="flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300"
+            >
+              Voir la page du projet <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
+        </div>
+      </div>
+
+      {projet.statut !== "livre" && (
+        <div className="p-4 bg-anthracite-800/40 border border-anthracite-700 rounded-xl space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium flex items-center gap-2">
+              <FolderOpen className="w-4 h-4 text-cyan-400" /> Photos du vol (comme un projet classique)
+            </p>
+            {msg && <p className="text-xs text-green-400">{msg}</p>}
+            {err && <p className="text-xs text-red-400">{err}</p>}
+          </div>
+          <UploadZone files={files} onFilesChange={setFiles} />
+          <div className="flex justify-end">
+            <button
+              onClick={uploadPhotos}
+              disabled={busy}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 transition-all disabled:opacity-50"
+            >
+              {busy && progress > 0 ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Upload {progress}%</>
+              ) : (
+                <><Upload className="w-4 h-4" /> Envoyer les photos & lancer le traitement</>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="p-4 bg-anthracite-800/40 border border-anthracite-700 rounded-xl space-y-3">
+        <p className="text-sm font-medium flex items-center gap-2">
+          <FileText className="w-4 h-4 text-cyan-400" /> Rapports PDF d&apos;analyse à livrer au client
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {rapports.length === 0 ? (
+            <p className="text-xs text-gray-500">Aucun rapport PDF ajouté.</p>
+          ) : (
+            rapports.map((r) => (
+              <div key={r.nom} className="flex items-center gap-2 px-3 py-1.5 bg-anthracite-800 border border-anthracite-600 rounded-lg text-xs">
+                <FileText className="w-3.5 h-3.5 text-cyan-400" />
+                <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-cyan-400 truncate max-w-[240px]">
+                  {r.nom}
+                </a>
+                <button onClick={() => removeRapport(r.nom)} className="text-gray-500 hover:text-red-400 transition-colors" aria-label="Supprimer">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <input
+            type="file"
+            accept="application/pdf"
+            multiple
+            onChange={(e) => setPdfFiles(Array.from(e.target.files || []))}
+            className="text-xs text-gray-400 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border file:border-anthracite-600 file:bg-anthracite-800 file:text-cyan-400 file:text-xs file:cursor-pointer"
+          />
+          <button
+            onClick={uploadPdfs}
+            disabled={busy || pdfFiles.length === 0}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 transition-all disabled:opacity-50"
+          >
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+            Ajouter le(s) rapport(s)
+          </button>
+        </div>
+        {pdfFiles.length > 0 && (
+          <p className="text-xs text-gray-500">{pdfFiles.length} fichier(s) sélectionné(s) : {pdfFiles.map((f) => f.name).join(", ")}</p>
+        )}
       </div>
     </div>
   );

@@ -329,6 +329,7 @@ function ParticulierOrderModal({ plan, onClose }: { plan: PricingPlan; onClose: 
   const [adresse, setAdresse] = useState("");
   const [codePostal, setCodePostal] = useState("");
   const [ville, setVille] = useState("");
+  const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
@@ -356,6 +357,7 @@ function ParticulierOrderModal({ plan, onClose }: { plan: PricingPlan; onClose: 
           adresse: adresse.trim(),
           codePostal: codePostal.trim(),
           ville: ville.trim(),
+          description: description.trim(),
         }),
       });
       if (!res.ok) {
@@ -440,6 +442,18 @@ function ParticulierOrderModal({ plan, onClose }: { plan: PricingPlan; onClose: 
                     className="w-full px-3 py-2.5 rounded-xl bg-anthracite-900 border border-anthracite-600 text-sm placeholder:text-gray-600 focus:border-cyan-500 outline-none transition-colors"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">
+                  Décrivez votre besoin <span className="text-gray-600">(facultatif)</span>
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Ex : vérification d'un devis de toiture, projet d'implantation de panneaux solaires, piscine..."
+                  rows={3}
+                  className="w-full px-3 py-2.5 rounded-xl bg-anthracite-900 border border-anthracite-600 text-sm placeholder:text-gray-600 focus:border-cyan-500 outline-none transition-colors resize-none"
+                />
               </div>
             </div>
 

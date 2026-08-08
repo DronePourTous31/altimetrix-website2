@@ -61,11 +61,23 @@ export async function GET(req: Request) {
   const planNomMap: Record<string, string> = {};
   pricingPlans.forEach((p) => { planNomMap[p.id] = p.name; });
 
+  // Projets liés aux demandes (traitement lancé par l'admin).
+  const projetIds = [...new Set((demandes || []).map((d) => d.projet_id).filter(Boolean))] as string[];
+  const projetsMap: Record<string, { id: string; nom: string; statut: string; type_analyse: string; adresse: string | null; created_at: string; delivered_at: string | null; rapports_pdf: { nom: string; url: string }[] | null }> = {};
+  if (projetIds.length > 0) {
+    const { data: projets } = await admin
+      .from("projets")
+      .select("id, nom, statut, type_analyse, adresse, created_at, delivered_at, rapports_pdf")
+      .in("id", projetIds);
+    (projets || []).forEach((p) => { projetsMap[p.id] = p; });
+  }
+
   const rows = (demandes || []).map((d) => ({
     ...d,
     client: profilesMap[d.user_id] || null,
     email: emailMap[d.user_id] || "",
     plan_nom: planNomMap[d.plan_id] || d.plan_id,
+    projet: d.projet_id ? projetsMap[d.projet_id] || null : null,
   }));
 
   return NextResponse.json({ demandes: rows });

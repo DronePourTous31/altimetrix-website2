@@ -105,6 +105,31 @@ export default function ProjetDetailPage() {
         </div>
       )}
 
+      {projet.statut === "livre" && Array.isArray(projet.rapports_pdf) && projet.rapports_pdf.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-cyan-400" /> Rapports d&apos;analyse
+          </h2>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {projet.rapports_pdf.map((r: { nom: string; url: string }) => (
+              <a
+                key={r.nom}
+                href={r.url}
+                target="_blank"
+                className="flex items-center gap-3 p-4 bg-anthracite-800/30 border border-anthracite-700 rounded-xl hover:border-cyan-500/30 transition-all group"
+              >
+                <FileText className="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{r.nom}</p>
+                  <p className="text-xs text-gray-500">Rapport PDF</p>
+                </div>
+                <ExternalLink className="w-4 h-4 text-gray-500 ml-auto shrink-0" />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
       {projet.statut === "upload_en_attente" && (
         <div className="bg-anthracite-800/30 border border-anthracite-700 rounded-xl p-8 text-center">
           <p className="text-gray-400 mb-2">Vos photos sont en cours d&apos;analyse par notre pipeline.</p>

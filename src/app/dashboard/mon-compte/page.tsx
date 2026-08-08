@@ -77,9 +77,18 @@ interface DemandeParticulier {
   code_postal: string;
   ville: string;
   hors_zone: boolean;
+  description: string | null;
   statut: "en_attente" | "validee" | "refusee" | "payee";
   paiement_url: string | null;
   created_at: string;
+  projet: {
+    id: string;
+    nom: string;
+    statut: string;
+    type_analyse: string;
+    created_at: string;
+    delivered_at: string | null;
+  } | null;
 }
 
 const DEMANDE_LABEL: Record<string, string> = {
@@ -87,6 +96,13 @@ const DEMANDE_LABEL: Record<string, string> = {
   validee: "Faisabilité validée — paiement en attente",
   refusee: "Refusée",
   payee: "Payée",
+};
+
+const PROJET_LABEL: Record<string, string> = {
+  upload_en_attente: "Captation en attente",
+  en_traitement: "En traitement",
+  livre: "Rapport livré",
+  erreur: "Erreur",
 };
 
 const eur = (cents: number) =>
@@ -424,9 +440,35 @@ export default function MonComptePage() {
                         {d.adresse}, {d.code_postal} {d.ville}
                         {d.hors_zone && <span className="text-amber-400"> · hors périmètre standard</span>}
                       </p>
+                      {d.description && (
+                        <p className="text-xs text-gray-400 mt-1 italic">« {d.description} »</p>
+                      )}
                       <p className="text-xs text-gray-600 mt-0.5">
                         Demande du {new Date(d.created_at).toLocaleDateString("fr-FR")}
                       </p>
+                      {d.projet && (
+                        <div className="mt-2">
+                          <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full ${
+                            d.projet.statut === "livre"
+                              ? "bg-green-500/10 text-green-400"
+                              : d.projet.statut === "en_traitement"
+                                ? "bg-amber-500/10 text-amber-400"
+                                : d.projet.statut === "erreur"
+                                  ? "bg-red-500/10 text-red-400"
+                                  : "bg-cyan-500/10 text-cyan-400"
+                          }`}>
+                            {PROJET_LABEL[d.projet.statut] || d.projet.statut}
+                          </span>
+                          {d.projet.statut === "livre" && (
+                            <Link
+                              href={`/dashboard/projets/${d.projet.id}`}
+                              className="ml-2 inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300"
+                            >
+                              Accéder à mon rapport <ArrowRight className="w-3 h-3" />
+                            </Link>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <span
                       className={`shrink-0 text-xs px-2.5 py-1 rounded-full ${

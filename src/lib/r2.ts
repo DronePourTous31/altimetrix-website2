@@ -20,20 +20,15 @@ function getSignatureKey(key: string, dateStamp: string, region: string): Buffer
   return hmacSha256(kService, "aws4_request");
 }
 
-export async function uploadToR2(
+async function r2Put(
+  accountId: string,
+  accessKey: string,
+  secretKey: string,
+  bucket: string,
   key: string,
   buffer: Buffer,
   contentType: string,
 ): Promise<void> {
-  const accountId = R2_ACCOUNT_ID();
-  const accessKey = R2_ACCESS_KEY();
-  const secretKey = R2_SECRET_KEY();
-  const bucket = R2_BUCKET();
-
-  if (!accountId || !accessKey || !secretKey) {
-    throw new Error("R2 non configuré : clés manquantes");
-  }
-
   const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
   const region = "auto";
   const now = new Date();
@@ -88,6 +83,41 @@ export async function uploadToR2(
     const text = await res.text();
     throw new Error(`R2 upload failed (${res.status}): ${text}`);
   }
+}
+
+export async function uploadToR2(
+  key: string,
+  buffer: Buffer,
+  contentType: string,
+): Promise<void> {
+  const accountId = R2_ACCOUNT_ID();
+  const accessKey = R2_ACCESS_KEY();
+  const secretKey = R2_SECRET_KEY();
+  const bucket = R2_BUCKET();
+
+  if (!accountId || !accessKey || !secretKey) {
+    throw new Error("R2 non configuré : clés manquantes");
+  }
+
+  await r2Put(accountId, accessKey, secretKey, bucket, key, buffer, contentType);
+}
+
+export const R2_ALTIMETRIX_PUBLIC_URL = "https://pub-0459c8bf6e9348e592f4decd8b6bab91.r2.dev";
+
+export async function uploadToR2Altimetrix(
+  key: string,
+  buffer: Buffer,
+  contentType: string,
+): Promise<void> {
+  await r2Put(
+    R2_ALTIMETRIX_ACCOUNT_ID,
+    R2_ALTIMETRIX_ACCESS_KEY,
+    R2_ALTIMETRIX_SECRET_KEY,
+    R2_ALTIMETRIX_BUCKET,
+    key,
+    buffer,
+    contentType,
+  );
 }
 
 export async function deleteR2Prefix(prefix: string): Promise<{ deleted: number }> {

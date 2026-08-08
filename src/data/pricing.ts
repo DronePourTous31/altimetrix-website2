@@ -274,6 +274,7 @@ export const compareRows: { label: string; values: Record<string, string> }[] = 
   { label: "Mission planner Leaflet", values: { "starter-mesures": "✓", "starter-pro": "✓", "solar-pro": "✓", "solar-pro-plus": "✓", particulier: "—" } },
   { label: "Calepinage panneaux PV 3D", values: { "starter-mesures": "+10€", "starter-pro": "✓", "solar-pro": "★", "solar-pro-plus": "★", particulier: "Premium" } },
   { label: "Photos pour inspection", values: { "starter-mesures": "+5€", "starter-pro": "+5€", "solar-pro": "+5€", "solar-pro-plus": "+5€", particulier: "—" } },
+  { label: "Captation photos (vol drone AltiMetrix)", values: { "starter-mesures": "—", "starter-pro": "—", "solar-pro": "—", "solar-pro-plus": "—", particulier: "+150€" } },
   { label: "Analyse irradiation GRASS GIS", values: { "starter-mesures": "—", "starter-pro": "—", "solar-pro": "★", "solar-pro-plus": "★", particulier: "Premium" } },
   { label: "Analyse ombrage dynamique", values: { "starter-mesures": "—", "starter-pro": "—", "solar-pro": "★", "solar-pro-plus": "★", particulier: "Premium" } },
   { label: "Implantation 3D objets", values: { "starter-mesures": "—", "starter-pro": "—", "solar-pro": "—", "solar-pro-plus": "—", particulier: "Premium" } },

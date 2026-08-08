@@ -53,15 +53,38 @@ export async function POST(req: Request) {
     .update({ storage_path_input: storagePath, upload_termine: true })
     .eq("id", projetId);
 
-  const authData = await authResp.json().catch(() => null);
-  const userEmail = authData?.email as string | undefined;
-  const userPrenom = authData?.user_metadata?.prenom as string | undefined;
+  // Email de confirmation au PROPRIÉTAIRE du projet (l'admin uploade pour le
+  // client) → on cherche le user_id du projet, pas le token détenteur.
+  const { data: projet } = await supabase
+    .from("projets")
+    .select("user_id, nom")
+    .eq("id", projetId)
+    .single();
 
-  if (userEmail) {
+  let emailOwner: string | null = null;
+  if (projet?.user_id) {
+    const adminSvc = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        global: { headers: { Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` } },
+        cookies: { getAll: () => [], setAll: () => {} },
+      }
+    );
+    const { data: { user: ownerUser } } = await adminSvc.auth.admin.getUserById(projet.user_id);
+    emailOwner = ownerUser?.email || null;
+  }
+
+  if (emailOwner && projet?.user_id) {
+    let ownerPrenom: string | null = null;
+    try {
+      const { data } = await supabase.from("profiles").select("prenom").eq("id", projet.user_id).single();
+      ownerPrenom = data?.prenom ?? null;
+    } catch {}
     sendEmail({
-      to: userEmail,
+      to: emailOwner,
       subject: "Upload reçu — votre projet est en cours",
-      html: uploadReceivedHtml(userPrenom || "", projectName),
+      html: uploadReceivedHtml(ownerPrenom || "", projectName),
     }).catch((err) => console.error("Email upload reçu error:", err));
   }
 
