@@ -1,0 +1,34 @@
+import { NextResponse } from "next/server";
+import { getUploadUrl } from "@/lib/r2";
+
+export const runtime = "nodejs";
+
+export async function POST(req: Request) {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return NextResponse.json({ error: "Non authé" }, { status: 401 });
+  }
+
+  const authResp = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/user`,
+    {
+      headers: {
+        Authorization: `Bearer ${authHeader.slice(7)}`,
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      },
+    }
+  );
+
+  if (!authResp.ok) {
+    const text = await authResp.text();
+    return NextResponse.json({ error: "Non authé", detail: text }, { status: 401 });
+  }
+
+  const { clientName, projectName, category, filename, contentType, projetId } =
+    await req.json();
+
+  const key = `clients/${clientName}/${projectName}/PHOTOS/${category}/${filename}`;
+  const uploadUrl = await getUploadUrl(key);
+
+  return NextResponse.json({ uploadUrl, key, filename, contentType });
+}

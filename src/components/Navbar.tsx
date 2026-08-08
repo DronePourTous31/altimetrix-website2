@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Menu, X, ChevronDown } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
   { label: "Accueil", href: "/" },
@@ -18,6 +19,7 @@ const navItems = [
   },
   { label: "Tarifs", href: "/pricing" },
   { label: "Démo 3D", href: "/demo" },
+  { label: "Drone-Annotate", href: "/drone-annotate" },
   { label: "Mission Planner", href: "/mission-planner" },
   { label: "Tutoriels", href: "/tutorials" },
   { label: "Contact", href: "/contact" },
@@ -27,11 +29,22 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(!!session);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session);
+    });
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (
@@ -95,18 +108,29 @@ export default function Navbar() {
               </div>
             ))}
             <div className="ml-4 flex items-center gap-3">
-              <Link
-                href="/auth/login"
-                className="px-4 py-2 text-sm text-gray-300 hover:text-white transition-colors"
-              >
-                Connexion
-              </Link>
-              <Link
-                href="/auth/register"
-                className="px-5 py-2.5 text-sm font-medium text-white gradient-cyan rounded-lg hover:opacity-90 transition-all hover:shadow-lg hover:shadow-cyan-500/25"
-              >
-                Essai gratuit
-              </Link>
+              {isLoggedIn ? (
+                <Link
+                  href="/dashboard"
+                  className="px-4 py-2 text-sm text-gray-300 hover:text-white transition-colors"
+                >
+                  Dashboard
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/auth/login"
+                    className="px-4 py-2 text-sm text-gray-300 hover:text-white transition-colors"
+                  >
+                    Connexion
+                  </Link>
+                  <Link
+                    href="/auth/register"
+                    className="px-5 py-2.5 text-sm font-medium text-white gradient-cyan rounded-lg hover:opacity-90 transition-all hover:shadow-lg hover:shadow-cyan-500/25"
+                  >
+                    Essai gratuit
+                  </Link>
+                </>
+              )}
             </div>
           </div>
 
@@ -152,20 +176,32 @@ export default function Navbar() {
               </div>
             ))}
             <hr className="border-anthracite-700 my-3" />
-            <Link
-              href="/auth/login"
-              className="block px-3 py-2.5 text-sm text-gray-300"
-              onClick={() => setIsOpen(false)}
-            >
-              Connexion
-            </Link>
-            <Link
-              href="/auth/register"
-              className="block px-3 py-2.5 text-sm font-medium text-white gradient-cyan rounded-lg text-center mt-2"
-              onClick={() => setIsOpen(false)}
-            >
-              Essai gratuit
-            </Link>
+            {isLoggedIn ? (
+              <Link
+                href="/dashboard"
+                className="block px-3 py-2.5 text-sm text-gray-300"
+                onClick={() => setIsOpen(false)}
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/auth/login"
+                  className="block px-3 py-2.5 text-sm text-gray-300"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Connexion
+                </Link>
+                <Link
+                  href="/auth/register"
+                  className="block px-3 py-2.5 text-sm font-medium text-white gradient-cyan rounded-lg text-center mt-2"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Essai gratuit
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}
