@@ -122,6 +122,7 @@ export const pricingPlans: PricingPlan[] = [
       "Modèle 3D de votre toiture / terrain",
       "Métrés précis : surface, pentes, linéaires",
       "Comparatif devis vs métrés réels",
+      "Photos HD du vol (accès pendant 3 mois)",
       "Rapport PDF professionnel",
     ],
     notIncluded: [
@@ -144,6 +145,7 @@ export const pricingPlans: PricingPlan[] = [
     features: [
       "Captation terrain par nos soins (Haute-Garonne / Gers)",
       "Tout le Rapport Standard",
+      "Photos HD du vol (accès pendant 3 mois)",
       "Calepinage PV 3D sur votre toiture réelle",
       "OU implantation 3D piscine / abri / terrasse",
       "Analyse irradiation et ombrage (option solaire)",
@@ -273,7 +275,7 @@ export const compareRows: { label: string; values: Record<string, string> }[] = 
   { label: "Rapport PDF automatisé", values: { "starter-mesures": "✓", "starter-pro": "✓", "solar-pro": "✓", "solar-pro-plus": "✓", particulier: "✓" } },
   { label: "Mission planner Leaflet", values: { "starter-mesures": "✓", "starter-pro": "✓", "solar-pro": "✓", "solar-pro-plus": "✓", particulier: "—" } },
   { label: "Calepinage panneaux PV 3D", values: { "starter-mesures": "+10€", "starter-pro": "✓", "solar-pro": "★", "solar-pro-plus": "★", particulier: "Premium" } },
-  { label: "Photos pour inspection", values: { "starter-mesures": "+5€", "starter-pro": "+5€", "solar-pro": "+5€", "solar-pro-plus": "+5€", particulier: "—" } },
+  { label: "Photos HD du vol (accès 3 mois)", values: { "starter-mesures": "+5€", "starter-pro": "+5€", "solar-pro": "+5€", "solar-pro-plus": "+5€", particulier: "✓" } },
   { label: "Captation photos (vol drone AltiMetrix)", values: { "starter-mesures": "—", "starter-pro": "—", "solar-pro": "—", "solar-pro-plus": "—", particulier: "+150€" } },
   { label: "Analyse irradiation GRASS GIS", values: { "starter-mesures": "—", "starter-pro": "—", "solar-pro": "★", "solar-pro-plus": "★", particulier: "Premium" } },
   { label: "Analyse ombrage dynamique", values: { "starter-mesures": "—", "starter-pro": "—", "solar-pro": "★", "solar-pro-plus": "★", particulier: "Premium" } },

@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
-import { uploadToR2, r2Key } from "@/lib/r2";
+import { uploadToR2, uploadToR2Altimetrix, r2Key, R2_ALTIMETRIX_PUBLIC_URL } from "@/lib/r2";
 import fs from "fs";
 import path from "path";
 
 const ADMIN_IDS = ["cacfc3e4-e408-47f6-bc37-04d813625606"];
 const CLIENTS_ROOT = process.env.CLIENTS_ROOT || "F:\\DRONE\\ALTIMETRIX\\CLIENTS";
+
+function sanitize(name: string) {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
 
 export async function POST(req: Request) {
   const authHeader = req.headers.get("Authorization");
@@ -61,7 +65,29 @@ export async function POST(req: Request) {
         const key = r2Key(clientName, projectName, category, file.name);
         await uploadToR2(key, buffer, contentType);
         const storagePath = `r2://${process.env.R2_BUCKET || "altimetrix-uploads"}/clients/${clientName}/${projectName}`;
-        await admin.from("projets").update({ storage_path_input: storagePath }).eq("id", projetId);
+
+        // Copie publique (bucket altimetrix) : donne accès au client aux
+        // photos du vol qu'il a payées (galerie sur la page projet).
+        const filename = sanitize(file.name);
+        const publicKey = `clients/${clientName}/${projectName}/PHOTOS/${category}/${filename}`;
+        await uploadToR2Altimetrix(publicKey, buffer, contentType);
+        const publicUrl = `${R2_ALTIMETRIX_PUBLIC_URL}/altimetrix/${publicKey}`;
+
+        const { data: projet } = await admin
+          .from("projets")
+          .select("photos_uploaded")
+          .eq("id", projetId)
+          .single();
+        const photos = Array.isArray(projet?.photos_uploaded) ? projet.photos_uploaded : [];
+        const photosUpdated = [
+          ...photos.filter((p: { category?: string; filename?: string } | null) => !(p?.category === category && p?.filename === filename)),
+          { category, filename, url: publicUrl },
+        ];
+
+        await admin.from("projets").update({
+          storage_path_input: storagePath,
+          photos_uploaded: photosUpdated,
+        }).eq("id", projetId);
         return NextResponse.json({ success: true, filename: file.name, size: buffer.length, type: category, storage: "r2" });
       } catch (err) {
         console.error("R2 upload error:", err);

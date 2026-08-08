@@ -437,7 +437,7 @@ export default function AdminDashboard() {
                   <th className="text-left py-2 px-2">Adresse</th>
                   <th className="text-center py-2 px-2">Statut</th>
                   <th className="text-center py-2 px-2">Date</th>
-                  <th className="text-right py-2 px-2">Actions</th>
+                  <th className="text-center py-2 px-2">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -478,9 +478,9 @@ export default function AdminDashboard() {
                     <td className="py-2.5 px-2 text-center text-gray-400 text-xs">
                       {new Date(d.created_at).toLocaleDateString("fr-FR")}
                     </td>
-                    <td className="py-2.5 px-2 text-right">
+                    <td className="py-2.5 px-2 text-center">
                       {d.statut === "en_attente" ? (
-                        <div className="flex gap-2 justify-end">
+                        <div className="flex gap-2 justify-center">
                           <button
                             onClick={() => decideDemande(d.id, "valider")}
                             disabled={actionBusy === d.id}

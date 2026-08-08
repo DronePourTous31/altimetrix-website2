@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, FileText, Move3d, Map, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, Move3d, Map, Loader2, AlertCircle, ImageIcon } from "lucide-react";
 import { getAuthToken } from "@/lib/supabase/client";
 
 export default function ProjetDetailPage() {
@@ -59,6 +59,25 @@ export default function ProjetDetailPage() {
     (projet.type_analyse === "mesure" && projet.option_calepinage)
       ? "Mesure+"
       : TYPE_ANALYSE_LABEL[projet.type_analyse] ?? projet.type_analyse;
+
+  const CATEGORY_LABEL: Record<string, string> = {
+    NADIR: "Vue zénithale",
+    OBLIQUE1: "Oblique 1",
+    OBLIQUE2: "Oblique 2",
+    OBLIQUE3: "Oblique 3",
+    OBLIQUE4: "Oblique 4",
+  };
+  const photos = Array.isArray(projet.photos_uploaded) ? projet.photos_uploaded : [];
+  const photosByCategory: { category: string; label: string; items: { filename: string; url: string }[] }[] = [];
+  for (const p of photos) {
+    const cat = String(p?.category || "PHOTOS");
+    let group = photosByCategory.find((g) => g.category === cat);
+    if (!group) {
+      group = { category: cat, label: CATEGORY_LABEL[cat] || cat, items: [] };
+      photosByCategory.push(group);
+    }
+    group.items.push({ filename: String(p?.filename || "photo"), url: String(p?.url || "") });
+  }
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -127,6 +146,41 @@ export default function ProjetDetailPage() {
               </a>
             ))}
           </div>
+        </div>
+      )}
+
+      {photosByCategory.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
+            <ImageIcon className="w-5 h-5 text-cyan-400" /> Photos du vol
+          </h2>
+          <p className="text-xs text-gray-500 mb-4">
+            Les photos aériennes HD prises lors de votre captation. Cliquez pour agrandir.
+          </p>
+          {photosByCategory.map((group) => (
+            <div key={group.category} className="mb-5">
+              <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">{group.label} · {group.items.length}</p>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                {group.items.map((p) => (
+                  <a
+                    key={p.filename}
+                    href={p.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group relative aspect-square overflow-hidden rounded-lg bg-anthracite-800/40 border border-anthracite-700 hover:border-cyan-500/40 transition-all"
+                    title={p.filename}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={p.url} alt={p.filename} loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    <span className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <ExternalLink className="w-5 h-5 text-white" />
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
