@@ -268,9 +268,15 @@ export default function MonComptePage() {
                         onClick={async () => {
                           const token = await getAuthToken();
                           if (!token) return;
+                          const finPeriode = abo.current_period_end
+                            ? new Date(abo.current_period_end).toLocaleDateString("fr-FR")
+                            : null;
                           if (
                             !confirm(
-                              `Résilier « ${nom} » ?\n\nL&apos;abonnement restera actif jusqu'à la fin de la période en cours puis ne sera plus renouvelé.`
+                              `Résilier « ${nom} » ?\n\n` +
+                                (finPeriode
+                                  ? `L'abonnement restera actif jusqu'au ${finPeriode} puis ne sera plus renouvelé.`
+                                  : `L'abonnement restera actif jusqu'à la fin de la période en cours puis ne sera plus renouvelé.`)
                             )
                           ) return;
                           const res = await fetch(`/api/abonnements/${abo.id}`, {
