@@ -24,11 +24,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Non authé", detail: text }, { status: 401 });
   }
 
-  const { clientName, projectName, category, filename, contentType, projetId } =
+  const { clientName, projectName, category, filename, contentType } =
     await req.json();
 
-  const key = `clients/${clientName}/${projectName}/PHOTOS/${category}/${filename}`;
+  const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const key = `clients/${clientName}/${projectName}/PHOTOS/${category}/${safeFilename}`;
   const uploadUrl = await getUploadUrl(key);
 
-  return NextResponse.json({ uploadUrl, key, filename, contentType });
+  return NextResponse.json({ uploadUrl, key, filename: safeFilename, contentType });
 }

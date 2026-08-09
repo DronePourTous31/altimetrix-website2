@@ -104,6 +104,87 @@ export async function uploadToR2(
 
 export const R2_ALTIMETRIX_PUBLIC_URL = "https://pub-0459c8bf6e9348e592f4decd8b6bab91.r2.dev";
 
+// Copie serveur d'un objet déjà uploadé par le navigateur (URL pré-signée)
+// vers le bucket public `altimetrix` (galerie client). Les creds R2_* ont
+// accès aux deux buckets du même compte → CopyObject direct (PUT avec header
+// x-amz-copy-source), sans re-téléverser le fichier (~50 Mo par photo) à
+// travers le serveur.
+export async function copyToAltimetrix(
+  sourceKey: string,
+  destKey: string,
+): Promise<void> {
+  const accountId = R2_ACCOUNT_ID();
+  const accessKey = R2_ACCESS_KEY();
+  const secretKey = R2_SECRET_KEY();
+  const sourceBucket = R2_BUCKET();
+  const destBucket = R2_ALTIMETRIX_BUCKET;
+
+  if (!accountId || !accessKey || !secretKey) {
+    throw new Error("R2 non configuré : clés manquantes");
+  }
+
+  const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
+  const region = "auto";
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[:-]/g, "").slice(0, 15) + "Z";
+  const dateStamp = amzDate.slice(0, 8);
+
+  // Le bucket public stocke les objets sous le préfixe `altimetrix/`
+  // (ex: altimetrix/clients/...) → l'URL publique est pub...r2.dev/{key}.
+  const publicKey = `altimetrix/${destKey}`;
+  const canonicalUri = `/${destBucket}/${publicKey}`;
+  const copySource = `/${sourceBucket}/${sourceKey}`;
+  const payloadHash = crypto
+    .createHash("sha256")
+    .update("")
+    .digest("hex");
+
+  const canonicalHeaders = [
+    `host:${accountId}.r2.cloudflarestorage.com`,
+    `x-amz-content-sha256:${payloadHash}`,
+    `x-amz-copy-source:${copySource}`,
+    `x-amz-date:${amzDate}`,
+  ].join("\n") + "\n";
+  const signedHeaders = "host;x-amz-content-sha256;x-amz-copy-source;x-amz-date";
+  const canonicalRequest = [
+    "PUT",
+    canonicalUri,
+    "",
+    canonicalHeaders,
+    signedHeaders,
+    payloadHash,
+  ].join("\n");
+
+  const algorithm = "AWS4-HMAC-SHA256";
+  const credentialScope = `${dateStamp}/${region}/s3/aws4_request`;
+  const stringToSign = [
+    algorithm,
+    amzDate,
+    credentialScope,
+    crypto.createHash("sha256").update(canonicalRequest, "utf8").digest("hex"),
+  ].join("\n");
+
+  const signingKey = getSignatureKey(secretKey, dateStamp, region);
+  const signature = hmacSha256(signingKey, stringToSign).toString("hex");
+
+  const authorization = `${algorithm} Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+  const res = await fetch(`${endpoint}${canonicalUri}`, {
+    method: "PUT",
+    headers: {
+      "x-amz-content-sha256": payloadHash,
+      "x-amz-copy-source": copySource,
+      "x-amz-date": amzDate,
+      Authorization: authorization,
+    },
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`R2 copy failed (${res.status}): ${text}`);
+  }
+}
+
 export async function uploadToR2Altimetrix(
   key: string,
   buffer: Buffer,

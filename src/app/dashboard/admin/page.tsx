@@ -602,22 +602,59 @@ function DemandeProjetPanel({
     const token = await getAuthToken();
     if (!token) return;
     try {
-      let uploaded = 0;
+      const totalBytes = files.reduce((acc, cf) => acc + cf.file.size, 0);
+      let uploadedBytes = 0;
       for (const cf of files) {
-        const formData = new FormData();
-        formData.append("file", cf.file);
-        formData.append("projetId", projet.id);
-        formData.append("category", cf.category);
-        formData.append("clientName", clientName);
-        formData.append("projectName", projet.nom);
-        const res = await fetch("/api/admin/upload", {
+        // 1. URL pré-signée pour l'upload direct navigateur → R2 (contourne
+        // la limite de 4,5 Mo de Vercel pour les photos DNG).
+        const urlRes = await fetch("/api/upload-url", {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientName,
+            projectName: projet.nom,
+            category: cf.category,
+            filename: cf.file.name,
+            contentType: cf.file.type || "application/octet-stream",
+          }),
         });
-        if (!res.ok) throw new Error("Erreur upload photo");
-        uploaded++;
-        setProgress(Math.round((uploaded / files.length) * 100));
+        const urlJson = await urlRes.json();
+        if (!urlRes.ok) throw new Error(urlJson.error || "Erreur génération URL");
+        const key = urlJson.key as string;
+
+        // 2. PUT direct sur R2 avec suivi de progression en octets.
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("PUT", urlJson.uploadUrl);
+          xhr.upload.onprogress = (ev) => {
+            if (ev.lengthComputable) {
+              setProgress(Math.round(((uploadedBytes + ev.loaded) / totalBytes) * 100));
+            }
+          };
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) resolve();
+            else reject(new Error(`Upload R2 échoué (${xhr.status})`));
+          };
+          xhr.onerror = () => reject(new Error("Erreur réseau upload R2"));
+          xhr.send(cf.file);
+        });
+        uploadedBytes += cf.file.size;
+
+        // 3. Copie serveur privé → public + mise à jour du projet.
+        const finalize = await fetch("/api/admin/upload", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projetId: projet.id,
+            category: cf.category,
+            filename: urlJson.filename,
+            clientName,
+            projectName: projet.nom,
+            key,
+          }),
+        });
+        const finalizeJson = await finalize.json();
+        if (!finalize.ok) throw new Error(finalizeJson.error || "Erreur finalisation");
       }
       const confirm = await fetch("/api/confirm-upload", {
         method: "POST",
@@ -731,13 +768,21 @@ function DemandeProjetPanel({
               disabled={busy}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 transition-all disabled:opacity-50"
             >
-              {busy && progress > 0 ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Upload {progress}%</>
+              {busy ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> {progress > 0 ? `Envoi… ${progress}%` : "Préparation…"}</>
               ) : (
                 <><Upload className="w-4 h-4" /> Envoyer les photos & lancer le traitement</>
               )}
             </button>
           </div>
+          {busy && (
+            <div className="w-full h-1.5 bg-anthracite-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-cyan-400 transition-all duration-200"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          )}
         </div>
       )}
 
