@@ -25,7 +25,10 @@ export default function DroneAnnotatePage() {
     const iframe = iframeRef.current;
     if (!iframe) return;
 
+    let sent = false;
     const sendInit = () => {
+      if (sent) return;
+      sent = true;
       iframe.contentWindow?.postMessage(
         {
           type: "alti-init",
