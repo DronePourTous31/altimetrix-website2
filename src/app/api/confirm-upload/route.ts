@@ -51,18 +51,27 @@ export async function POST(req: Request) {
     ? `r2://${process.env.R2_BUCKET || "altimetrix-uploads"}/clients/${safeClient}/${safeProject}`
     : path.join(CLIENTS_ROOT, safeClient, safeProject);
 
-  await supabase
-    .from("projets")
-    .update({ storage_path_input: storagePath, upload_termine: true })
-    .eq("id", projetId);
-
   // Email de confirmation au PROPRIÉTAIRE du projet (l'admin uploade pour le
   // client) → on cherche le user_id du projet, pas le token détenteur.
   const { data: projet } = await supabase
     .from("projets")
-    .select("user_id, nom")
+    .select("user_id, nom, statut")
     .eq("id", projetId)
     .single();
+
+  // Un projet en "erreur" (échec pipeline précédent) qui reçoit un nouvel
+  // upload repasse en "upload_en_attente" → le watcher local le retraite.
+  // Les autres statuts (en_traitement, livre…) ne sont pas modifiés.
+  const statut = projet?.statut === "erreur" ? "upload_en_attente" : projet?.statut;
+
+  await supabase
+    .from("projets")
+    .update({
+      storage_path_input: storagePath,
+      upload_termine: true,
+      ...(statut ? { statut } : {}),
+    })
+    .eq("id", projetId);
 
   let emailOwner: string | null = null;
   if (projet?.user_id) {
