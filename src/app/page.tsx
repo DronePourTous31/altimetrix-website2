@@ -170,7 +170,7 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
-            <div className="relative hidden lg:block">
+            <div className="relative block">
               <div className="relative w-full aspect-square">
                 <div className="absolute inset-0 gradient-cyan rounded-3xl opacity-20 blur-2xl" />
                 <div className="relative w-full h-full bg-anthracite-900 rounded-3xl border border-anthracite-700 overflow-hidden">
@@ -202,7 +202,7 @@ export default function HomePage() {
       {/* Stats Section */}
       <section className="relative -mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-anthracite-800/80 backdrop-blur-sm border border-anthracite-700 rounded-2xl p-8 grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="bg-anthracite-800/80 backdrop-blur-sm border border-anthracite-700 rounded-2xl p-6 sm:p-8 grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
             {stats.map((stat) => (
               <div key={stat.label} className="text-center">
                 <div className="text-3xl font-bold text-cyan-400">{stat.value}</div>
