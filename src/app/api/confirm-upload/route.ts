@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import path from "path";
 import { sendEmail, uploadReceivedHtml } from "@/emails/templates";
+import { sanitizeKeyPart } from "@/lib/r2";
 
 export const runtime = "nodejs";
 
@@ -44,9 +45,11 @@ export async function POST(req: Request) {
   }
 
   const r2Configured = !!(process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY && process.env.R2_SECRET_KEY);
+  const safeClient = sanitizeKeyPart(clientName);
+  const safeProject = sanitizeKeyPart(projectName);
   const storagePath = r2Configured
-    ? `r2://${process.env.R2_BUCKET || "altimetrix-uploads"}/clients/${clientName}/${projectName}`
-    : path.join(CLIENTS_ROOT, clientName, projectName);
+    ? `r2://${process.env.R2_BUCKET || "altimetrix-uploads"}/clients/${safeClient}/${safeProject}`
+    : path.join(CLIENTS_ROOT, safeClient, safeProject);
 
   await supabase
     .from("projets")

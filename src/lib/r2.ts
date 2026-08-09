@@ -5,8 +5,16 @@ const R2_ACCESS_KEY = () => process.env.R2_ACCESS_KEY || "";
 const R2_SECRET_KEY = () => process.env.R2_SECRET_KEY || "";
 const R2_BUCKET = () => process.env.R2_BUCKET || "altimetrix-uploads";
 
+// Les noms de dossier (client, projet) et fichiers entrent dans des clés R2
+// et des URLs signées SigV4 : les caractères spéciaux (espaces, accents,
+// tirets cadratins…) cassent la signature → 403. On ne garde que
+// [a-zA-Z0-9._-], comme pour les noms de fichier.
+export function sanitizeKeyPart(name: string): string {
+  return String(name).replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
 export function r2Key(clientName: string, projectName: string, type: string, filename: string) {
-  return `clients/${clientName}/${projectName}/PHOTOS/${type}/${filename}`;
+  return `clients/${sanitizeKeyPart(clientName)}/${sanitizeKeyPart(projectName)}/PHOTOS/${type}/${filename}`;
 }
 
 function hmacSha256(key: string | Buffer, message: string): Buffer {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
-import { copyToAltimetrix, R2_ALTIMETRIX_PUBLIC_URL } from "@/lib/r2";
+import { copyToAltimetrix, R2_ALTIMETRIX_PUBLIC_URL, sanitizeKeyPart } from "@/lib/r2";
 import fs from "fs";
 import path from "path";
 
@@ -9,7 +9,7 @@ const ADMIN_IDS = ["cacfc3e4-e408-47f6-bc37-04d813625606"];
 const CLIENTS_ROOT = process.env.CLIENTS_ROOT || "F:\\DRONE\\ALTIMETRIX\\CLIENTS";
 
 function sanitize(name: string) {
-  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  return sanitizeKeyPart(name);
 }
 
 async function verifyAdmin(req: Request, token: string) {
@@ -58,7 +58,9 @@ export async function POST(req: Request) {
       }
 
       const safeFilename = sanitize(filename);
-      const sourceKey = `clients/${clientName}/${projectName}/PHOTOS/${category}/${safeFilename}`;
+      const safeClient = sanitize(clientName);
+      const safeProject = sanitize(projectName);
+      const sourceKey = `clients/${safeClient}/${safeProject}/PHOTOS/${category}/${safeFilename}`;
       const destKey = sourceKey;
 
       try {
@@ -82,7 +84,7 @@ export async function POST(req: Request) {
       ];
 
       await admin.from("projets").update({
-        storage_path_input: `r2://${process.env.R2_BUCKET || "altimetrix-uploads"}/clients/${clientName}/${projectName}`,
+        storage_path_input: `r2://${process.env.R2_BUCKET || "altimetrix-uploads"}/clients/${safeClient}/${safeProject}`,
         photos_uploaded: photosUpdated,
       }).eq("id", projetId);
 
@@ -115,12 +117,14 @@ export async function POST(req: Request) {
         const { uploadToR2, r2Key } = await import("@/lib/r2");
         const key = r2Key(clientName, projectName, category, file.name);
         await uploadToR2(key, buffer, ct);
-        const storagePath = `r2://${process.env.R2_BUCKET || "altimetrix-uploads"}/clients/${clientName}/${projectName}`;
+        const safeClient = sanitize(clientName);
+        const safeProject = sanitize(projectName);
+        const storagePath = `r2://${process.env.R2_BUCKET || "altimetrix-uploads"}/clients/${safeClient}/${safeProject}`;
 
         // Copie publique (bucket altimetrix) : donne accès au client aux
         // photos du vol qu'il a payées (galerie sur la page projet).
         const filename = sanitize(file.name);
-        const publicKey = `clients/${clientName}/${projectName}/PHOTOS/${category}/${filename}`;
+        const publicKey = `clients/${safeClient}/${safeProject}/PHOTOS/${category}/${filename}`;
         await copyToAltimetrix(key, publicKey);
         const publicUrl = `${R2_ALTIMETRIX_PUBLIC_URL}/altimetrix/${publicKey}`;
 
@@ -147,12 +151,12 @@ export async function POST(req: Request) {
     }
 
     // Fallback local (dev)
-    const dir = path.join(CLIENTS_ROOT, clientName, projectName, "PHOTOS", category);
+    const dir = path.join(CLIENTS_ROOT, sanitize(clientName), sanitize(projectName), "PHOTOS", category);
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, file.name), buffer);
+    fs.writeFileSync(path.join(dir, sanitize(file.name)), buffer);
 
     await admin.from("projets").update({
-      storage_path_input: path.join(CLIENTS_ROOT, clientName, projectName),
+      storage_path_input: path.join(CLIENTS_ROOT, sanitize(clientName), sanitize(projectName)),
     }).eq("id", projetId);
 
     return NextResponse.json({ success: true, filename: file.name, size: buffer.length, storage: "local" });

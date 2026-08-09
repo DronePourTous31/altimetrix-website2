@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUploadUrl } from "@/lib/r2";
+import { getUploadUrl, sanitizeKeyPart } from "@/lib/r2";
 
 export const runtime = "nodejs";
 
@@ -27,9 +27,11 @@ export async function POST(req: Request) {
   const { clientName, projectName, category, filename, contentType } =
     await req.json();
 
+  const safeClient = sanitizeKeyPart(clientName);
+  const safeProject = sanitizeKeyPart(projectName);
   const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const key = `clients/${clientName}/${projectName}/PHOTOS/${category}/${safeFilename}`;
+  const key = `clients/${safeClient}/${safeProject}/PHOTOS/${category}/${safeFilename}`;
   const uploadUrl = await getUploadUrl(key);
 
-  return NextResponse.json({ uploadUrl, key, filename: safeFilename, contentType });
+  return NextResponse.json({ uploadUrl, key, filename: safeFilename, clientName: safeClient, projectName: safeProject, contentType });
 }
