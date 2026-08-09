@@ -236,6 +236,12 @@ function Model3DViewer() {
     mv.setAttribute("interaction-prompt", "none");
     mv.setAttribute("min-camera-orbit", "auto auto 0.5m");
     mv.setAttribute("shadow-intensity", isMobile ? "0" : "0.2");
+    if (isMobile) {
+      mv.setAttribute("environment-image", "neutral");
+      mv.setAttribute("interaction-policy", "when-focused");
+      mv.setAttribute("powerPreference", "low-power");
+      mv.minimumRenderScale = 0.35;
+    }
     mv.style.width = "100%"; mv.style.height = "100%"; mv.style.background = "#1a1a2e";
     el.appendChild(mv);
     mvRef.current = mv;
