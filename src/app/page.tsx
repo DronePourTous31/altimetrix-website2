@@ -19,6 +19,7 @@ import {
   Move3d,
   Camera,
   Users,
+  Maximize2,
 } from "lucide-react";
 
 const services = [
@@ -112,6 +113,17 @@ const testimonials = [
 ];
 
 export default function HomePage() {
+  const openFullscreen = () => {
+    const video = document.getElementById("hero-video") as HTMLVideoElement | null;
+    if (!video) return;
+    const el = video as HTMLVideoElement & { webkitEnterFullscreen?: () => void };
+    if (el.webkitEnterFullscreen) {
+      el.webkitEnterFullscreen();
+    } else if (video.requestFullscreen) {
+      video.requestFullscreen();
+    }
+  };
+
   return (
     <>
       {/* Hero Section */}
@@ -175,6 +187,7 @@ export default function HomePage() {
                 <div className="absolute inset-0 gradient-cyan rounded-3xl opacity-20 blur-2xl" />
                 <div className="relative w-full h-full bg-anthracite-900 rounded-3xl border border-anthracite-700 overflow-hidden">
                   <video
+                    id="hero-video"
                     src="https://pub-0459c8bf6e9348e592f4decd8b6bab91.r2.dev/altimetrix/shared/videos/Maison_Occitanie_Horizontal.mp4"
                     autoPlay
                     muted
@@ -184,12 +197,22 @@ export default function HomePage() {
                   />
                   <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
                     <p className="text-sm font-semibold text-white/90 drop-shadow-md">Maison Occitanie — Vue aérienne</p>
-                    <Link
-                      href="/demo"
-                      className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors drop-shadow-md"
-                    >
-                      Démo <ChevronRight className="w-3 h-3" />
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      <Link
+                        href="/demo"
+                        className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors drop-shadow-md"
+                      >
+                        Démo <ChevronRight className="w-3 h-3" />
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={openFullscreen}
+                        aria-label="Afficher la vidéo en plein écran"
+                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-black/50 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/70 hover:border-cyan-400/50 hover:text-cyan-300 transition-all"
+                      >
+                        <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
