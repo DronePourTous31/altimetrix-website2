@@ -116,11 +116,31 @@ export default function HomePage() {
   const openFullscreen = () => {
     const video = document.getElementById("hero-video") as HTMLVideoElement | null;
     if (!video) return;
-    const el = video as HTMLVideoElement & { webkitEnterFullscreen?: () => void };
-    if (el.webkitEnterFullscreen) {
-      el.webkitEnterFullscreen();
-    } else if (video.requestFullscreen) {
-      video.requestFullscreen();
+    const el = video as HTMLVideoElement & {
+      webkitEnterFullscreen?: () => void;
+      webkitSupportsFullscreen?: boolean;
+    };
+    const enter = () => {
+      if (el.webkitEnterFullscreen && el.webkitSupportsFullscreen !== false) {
+        try {
+          el.webkitEnterFullscreen();
+          return;
+        } catch {
+          /* fallback ci-dessous */
+        }
+      }
+      if (video.requestFullscreen) {
+        video.requestFullscreen().catch(() => {
+          video.setAttribute("controls", "");
+        });
+      } else {
+        video.setAttribute("controls", "");
+      }
+    };
+    if (video.paused) {
+      video.play().then(enter).catch(enter);
+    } else {
+      enter();
     }
   };
 
