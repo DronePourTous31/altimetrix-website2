@@ -120,27 +120,21 @@ export default function HomePage() {
       webkitEnterFullscreen?: () => void;
       webkitSupportsFullscreen?: boolean;
     };
-    const enter = () => {
-      if (el.webkitEnterFullscreen && el.webkitSupportsFullscreen !== false) {
-        try {
-          el.webkitEnterFullscreen();
-          return;
-        } catch {
-          /* fallback ci-dessous */
-        }
+    if (el.webkitEnterFullscreen) {
+      try {
+        if (video.paused) video.play();
+        el.webkitEnterFullscreen();
+        return;
+      } catch {
+        /* fallback ci-dessous */
       }
-      if (video.requestFullscreen) {
-        video.requestFullscreen().catch(() => {
-          video.setAttribute("controls", "");
-        });
-      } else {
+    }
+    if (video.requestFullscreen) {
+      video.requestFullscreen().catch(() => {
         video.setAttribute("controls", "");
-      }
-    };
-    if (video.paused) {
-      video.play().then(enter).catch(enter);
+      });
     } else {
-      enter();
+      video.setAttribute("controls", "");
     }
   };
 
