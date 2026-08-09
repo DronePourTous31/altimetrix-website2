@@ -93,16 +93,18 @@ export default function Navbar() {
                   </Link>
                 )}
                 {item.children && dropdownOpen === item.label && (
-                  <div className="absolute top-full left-0 mt-1 w-56 bg-anthracite-800 border border-anthracite-700 rounded-xl shadow-2xl shadow-cyan-500/10 py-2 animate-slide-up">
-                    {item.children.map((child) => (
-                      <Link
-                        key={child.label}
-                        href={child.href}
-                        className="block px-4 py-2.5 text-sm text-gray-300 hover:text-cyan-400 hover:bg-anthracite-700/50 transition-colors"
-                      >
-                        {child.label}
-                      </Link>
-                    ))}
+                  <div className="absolute top-full left-0 pt-1">
+                    <div className="w-56 bg-anthracite-800 border border-anthracite-700 rounded-xl shadow-2xl shadow-cyan-500/10 py-2 animate-slide-up">
+                      {item.children.map((child) => (
+                        <Link
+                          key={child.label}
+                          href={child.href}
+                          className="block px-4 py-2.5 text-sm text-gray-300 hover:text-cyan-400 hover:bg-anthracite-700/50 transition-colors"
+                        >
+                          {child.label}
+                        </Link>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
