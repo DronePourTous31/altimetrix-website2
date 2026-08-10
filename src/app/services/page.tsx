@@ -122,18 +122,22 @@ function makeHandlers(zoom: number, setZoom: (v: number) => void, panX: number, 
   };
 }
 
-function showImageOverlay(src: string, zoom: number, panX: number, panY: number) {
+function showImageOverlay(src: string, zoom: number, panX: number, panY: number, imgEl?: HTMLImageElement | null, restoreTo?: HTMLElement | null) {
   if (document.getElementById("image-fs-overlay")) return;
   const o = document.createElement("div"); o.id = "image-fs-overlay";
   o.className = "fixed inset-0 z-[9999] bg-[#1a1a2e] flex flex-col";
   const bar = document.createElement("div"); bar.className = "flex justify-end p-3";
   const btn = document.createElement("button"); btn.textContent = "✕ Fermer";
   btn.className = "px-4 py-2 bg-black/60 hover:bg-black/80 rounded-lg text-white text-sm";
-  btn.onclick = () => { document.body.removeChild(o); document.body.style.overflow = ""; };
+  btn.onclick = () => {
+    if (imgEl && restoreTo && !restoreTo.querySelector("img")) restoreTo.appendChild(imgEl);
+    document.body.removeChild(o); document.body.style.overflow = "";
+  };
   const wrap = document.createElement("div"); wrap.className = "flex-1 flex items-center justify-center overflow-hidden";
   const inner = document.createElement("div"); inner.className = "w-full h-full flex items-center justify-center";
   inner.style.transform = `translate(${panX}%, ${panY}%) scale(${zoom})`;
-  const img = document.createElement("img"); img.src = src;
+  const img = imgEl ?? document.createElement("img");
+  if (!imgEl) img.src = src;
   img.className = "max-w-full max-h-full pointer-events-none select-none"; img.draggable = false;
   inner.appendChild(img); wrap.appendChild(inner); bar.appendChild(btn);
   o.appendChild(bar); o.appendChild(wrap);
@@ -406,7 +410,11 @@ function Model3DViewer() {
       return;
     }
     if (cur?.type === "image") {
-      if (window.innerWidth < 768) { showImageOverlay(cur.url, isVeg ? veZoom : orZoom, isVeg ? vePanX : orPanX, isVeg ? vePanY : orPanY); return; }
+      if (window.innerWidth < 768) {
+        const imgEl = imgRef.current?.querySelector("img") as HTMLImageElement | null;
+        showImageOverlay(cur.url, isVeg ? veZoom : orZoom, isVeg ? vePanX : orPanX, isVeg ? vePanY : orPanY, imgEl, imgEl?.parentElement);
+        return;
+      }
       const el = outerRef.current; if (!el) return;
       if (document.fullscreenElement || (document as any).webkitFullscreenElement) { document.exitFullscreen?.(); (document as any).webkitExitFullscreen?.(); return; }
       if (el.requestFullscreen) el.requestFullscreen().catch(() => showImageOverlay(cur.url, isVeg ? veZoom : orZoom, isVeg ? vePanX : orPanX, isVeg ? vePanY : orPanY));

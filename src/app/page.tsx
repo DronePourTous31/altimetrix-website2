@@ -123,10 +123,6 @@ export default function HomePage() {
   const openFullscreen = () => {
     const video = document.getElementById("hero-video") as HTMLVideoElement | null;
     if (!video) return;
-    const el = video as HTMLVideoElement & {
-      webkitEnterFullscreen?: () => void;
-      webkitSupportsFullscreen?: boolean;
-    };
     const isIOS =
       typeof window !== "undefined" &&
       /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -134,22 +130,32 @@ export default function HomePage() {
       setFsOpen(true);
       return;
     }
-    if (el.webkitEnterFullscreen && el.webkitSupportsFullscreen !== false) {
-      try {
-        if (video.paused) video.play();
-        el.webkitEnterFullscreen();
-        return;
-      } catch {
-        /* fallback ci-dessous */
-      }
-    }
-    if (video.requestFullscreen) {
-      video.requestFullscreen().catch(() => {
-        setFsOpen(true);
-      });
-    } else {
-      setFsOpen(true);
-    }
+    if (video.paused) video.play().catch(() => {});
+    if (document.getElementById("hero-video-fs")) return;
+
+    const o = document.createElement("div");
+    o.id = "hero-video-fs";
+    o.className = "fixed inset-0 z-[9999] bg-black flex items-center justify-center";
+    const v = document.createElement("video");
+    v.src = HERO_VIDEO_URL; v.autoplay = true; v.muted = true; v.loop = true; v.playsInline = true;
+    v.controls = true; v.className = "w-full h-full object-contain";
+    v.onclick = (e) => e.stopPropagation();
+    const btn = document.createElement("button");
+    btn.textContent = "✕"; btn.setAttribute("aria-label", "Fermer le plein écran");
+    btn.className = "absolute top-4 right-4 w-11 h-11 rounded-full bg-white/10 border border-white/30 flex items-center justify-center text-white hover:bg-white/20 transition-all z-10";
+    const close = () => {
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      if (o.parentElement) o.parentElement.removeChild(o);
+      document.removeEventListener("fullscreenchange", onFs);
+      v.src = ""; v.load();
+    };
+    btn.onclick = close;
+    const onFs = () => { if (!document.fullscreenElement) close(); };
+    document.addEventListener("fullscreenchange", onFs);
+    o.onclick = (e) => { if (e.target === o) close(); };
+    o.appendChild(v); o.appendChild(btn);
+    document.body.appendChild(o);
+    o.requestFullscreen?.().catch(() => {});
   };
 
   return (
