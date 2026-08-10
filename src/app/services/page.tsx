@@ -122,21 +122,105 @@ function makeHandlers(zoom: number, setZoom: (v: number) => void, panX: number, 
   };
 }
 
-function showImageOverlay(src: string, zoom: number, panX: number, panY: number) {
-  if (document.getElementById("image-fs-overlay")) return;
-  const o = document.createElement("div"); o.id = "image-fs-overlay";
+function downscaleImage(img: HTMLImageElement, maxDim: number): HTMLCanvasElement {
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  const sc = Math.min(1, maxDim / Math.max(iw, ih));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(iw * sc));
+  c.height = Math.max(1, Math.round(ih * sc));
+  const ctx = c.getContext("2d");
+  if (ctx) ctx.drawImage(img, 0, 0, c.width, c.height);
+  return c;
+}
+
+function cloneCanvas(src: HTMLCanvasElement): HTMLCanvasElement {
+  const c = document.createElement("canvas");
+  c.width = src.width; c.height = src.height;
+  const ctx = c.getContext("2d");
+  if (ctx) ctx.drawImage(src, 0, 0);
+  return c;
+}
+
+function showZoomOverlay(opts: { canvas?: HTMLCanvasElement; src?: string; zoom: number; panX: number; panY: number }) {
+  if (document.getElementById("zoom-fs-overlay")) return;
+  const o = document.createElement("div"); o.id = "zoom-fs-overlay";
   o.className = "fixed inset-0 z-[9999] bg-[#1a1a2e] flex flex-col";
-  const bar = document.createElement("div"); bar.className = "flex justify-end p-3";
+  const bar = document.createElement("div"); bar.className = "flex items-center justify-between p-3";
+  const hint = document.createElement("span");
+  hint.className = "text-xs text-gray-400";
+  hint.textContent = "Glissez pour déplacer · pincez ou molette pour zoomer";
   const btn = document.createElement("button"); btn.textContent = "✕ Fermer";
   btn.className = "px-4 py-2 bg-black/60 hover:bg-black/80 rounded-lg text-white text-sm";
-  btn.onclick = () => { document.body.removeChild(o); document.body.style.overflow = ""; };
-  const wrap = document.createElement("div"); wrap.className = "flex-1 flex items-center justify-center overflow-hidden";
-  const inner = document.createElement("div"); inner.className = "w-full h-full flex items-center justify-center";
-  inner.style.transform = `translate(${panX}%, ${panY}%) scale(${zoom})`;
-  const img = document.createElement("img"); img.src = src;
-  img.className = "max-w-full max-h-full pointer-events-none select-none"; img.draggable = false;
-  inner.appendChild(img); wrap.appendChild(inner); bar.appendChild(btn);
-  o.appendChild(bar); o.appendChild(wrap);
+  const wrap = document.createElement("div");
+  wrap.className = "flex-1 flex items-center justify-center overflow-hidden touch-none cursor-grab active:cursor-grabbing";
+  const inner = document.createElement("div");
+  inner.className = "w-full h-full flex items-center justify-center select-none";
+  const view = (opts.canvas ?? document.createElement("img")) as HTMLElement;
+  view.className = "max-w-full max-h-full pointer-events-none select-none";
+  if (!opts.canvas) (view as HTMLImageElement).src = opts.src ?? "";
+  if (opts.canvas) view.draggable = false;
+
+  let zoom = opts.zoom, px = opts.panX, py = opts.panY;
+  const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+  const apply = () => { inner.style.transform = `translate(${px}%, ${py}%) scale(${zoom})`; };
+  const zoomLabel = document.createElement("span");
+  zoomLabel.className = "text-xs text-white bg-black/60 rounded-lg px-2.5 py-1.5 min-w-14 text-center";
+  const setZoom = (z: number) => { zoom = clamp(z, 1, 20); zoomLabel.textContent = `${zoom.toFixed(1)}×`; apply(); };
+  const setPan = (dx: number, dy: number) => { px = clamp(px + dx, -100, 100); py = clamp(py + dy, -100, 100); apply(); };
+  const ctl = document.createElement("div");
+  ctl.className = "absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10";
+  const mkBtn = (t: string, fn: () => void) => {
+    const b = document.createElement("button"); b.textContent = t;
+    b.className = "w-11 h-11 bg-black/60 hover:bg-black/80 rounded-lg text-white text-lg font-semibold";
+    b.onclick = fn; return b;
+  };
+  const btnReset = mkBtn("↺", () => { zoom = opts.zoom; px = opts.panX; py = opts.panY; zoomLabel.textContent = `${zoom.toFixed(1)}×`; apply(); });
+  ctl.appendChild(mkBtn("−", () => setZoom(zoom / 1.5)));
+  ctl.appendChild(zoomLabel);
+  ctl.appendChild(mkBtn("+", () => setZoom(zoom * 1.5)));
+  ctl.appendChild(btnReset);
+  zoomLabel.textContent = `${zoom.toFixed(1)}×`;
+  apply();
+
+  let lastTouch: { x: number; y: number } | null = null;
+  let pinchDist = 0, lastTap = 0;
+  const dist = (e: TouchEvent) => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+  const onTouchStart = (e: TouchEvent) => {
+    if (e.touches.length === 1) {
+      const now = Date.now();
+      if (now - lastTap < 300) { setZoom(zoom * 2); lastTap = 0; }
+      else { lastTap = now; lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }
+    } else if (e.touches.length === 2) { lastTouch = null; pinchDist = dist(e); }
+  };
+  const onTouchMove = (e: TouchEvent) => {
+    e.preventDefault();
+    if (e.touches.length === 1 && lastTouch) {
+      const dx = e.touches[0].clientX - lastTouch.x, dy = e.touches[0].clientY - lastTouch.y;
+      lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      setPan((dx / wrap.clientWidth) * 100, (dy / wrap.clientHeight) * 100);
+    } else if (e.touches.length === 2 && pinchDist > 0) {
+      const d = dist(e); setZoom(zoom * (d / pinchDist)); pinchDist = d;
+    }
+  };
+  const onTouchEnd = () => { lastTouch = null; pinchDist = 0; };
+  wrap.addEventListener("touchstart", onTouchStart, { passive: false });
+  wrap.addEventListener("touchmove", onTouchMove, { passive: false });
+  wrap.addEventListener("touchend", onTouchEnd, { passive: true });
+  const onWheel = (e: WheelEvent) => { e.preventDefault(); setZoom(zoom * (1 - 0.001 * e.deltaY)); };
+  wrap.addEventListener("wheel", onWheel, { passive: false });
+
+  const close = () => {
+    wrap.removeEventListener("touchstart", onTouchStart);
+    wrap.removeEventListener("touchmove", onTouchMove);
+    wrap.removeEventListener("touchend", onTouchEnd);
+    wrap.removeEventListener("wheel", onWheel);
+    document.body.removeChild(o); document.body.style.overflow = "";
+  };
+  btn.onclick = close;
+
+  bar.appendChild(hint); bar.appendChild(btn);
+  wrap.appendChild(inner); inner.appendChild(view);
+  o.appendChild(bar); o.appendChild(wrap); o.appendChild(ctl);
   document.body.appendChild(o); document.body.style.overflow = "hidden";
 }
 
@@ -406,22 +490,28 @@ function Model3DViewer() {
       return;
     }
     if (cur?.type === "image") {
-      if (window.innerWidth < 768) { showImageOverlay(cur.url, isVeg ? veZoom : orZoom, isVeg ? vePanX : orPanX, isVeg ? vePanY : orPanY); return; }
+      const zoom = isVeg ? veZoom : orZoom, panX = isVeg ? vePanX : orPanX, panY = isVeg ? vePanY : orPanY;
+      if (window.innerWidth < 768) {
+        const srcImg = imgRef.current?.querySelector("img");
+        if (srcImg && srcImg.complete && srcImg.naturalWidth > 0) showZoomOverlay({ canvas: downscaleImage(srcImg, 2560), zoom, panX, panY });
+        else showZoomOverlay({ src: cur.url, zoom, panX, panY });
+        return;
+      }
       const el = outerRef.current; if (!el) return;
       if (document.fullscreenElement || (document as any).webkitFullscreenElement) { document.exitFullscreen?.(); (document as any).webkitExitFullscreen?.(); return; }
-      if (el.requestFullscreen) el.requestFullscreen().catch(() => showImageOverlay(cur.url, isVeg ? veZoom : orZoom, isVeg ? vePanX : orPanX, isVeg ? vePanY : orPanY));
+      if (el.requestFullscreen) el.requestFullscreen().catch(() => showZoomOverlay({ src: cur.url, zoom, panX, panY }));
       else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
-      else showImageOverlay(cur.url, isVeg ? veZoom : orZoom, isVeg ? vePanX : orPanX, isVeg ? vePanY : orPanY);
+      else showZoomOverlay({ src: cur.url, zoom, panX, panY });
       return;
     }
     if (cur?.type === "dsm") {
       const canvas = outCvsRef.current;
-      if (canvas && window.innerWidth < 768) { canvas.toBlob(b => { if (b) showGlobalOverlay(URL.createObjectURL(b)); }); return; }
+      if (canvas && window.innerWidth < 768) { showZoomOverlay({ canvas: cloneCanvas(canvas), zoom: dsZoom, panX: dsPanX, panY: dsPanY }); return; }
       const el = outerRef.current; if (!el) return;
       if (document.fullscreenElement || (document as any).webkitFullscreenElement) { document.exitFullscreen?.(); (document as any).webkitExitFullscreen?.(); return; }
-      if (el.requestFullscreen) el.requestFullscreen().catch(() => { const c = outCvsRef.current; c?.toBlob(b => { if (b) showGlobalOverlay(URL.createObjectURL(b)); }); });
+      if (el.requestFullscreen) el.requestFullscreen().catch(() => { const c = outCvsRef.current; if (c) showZoomOverlay({ canvas: cloneCanvas(c), zoom: dsZoom, panX: dsPanX, panY: dsPanY }); });
       else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
-      else { const c = outCvsRef.current; c?.toBlob(b => { if (b) showGlobalOverlay(URL.createObjectURL(b)); }); }
+      else { const c = outCvsRef.current; if (c) showZoomOverlay({ canvas: cloneCanvas(c), zoom: dsZoom, panX: dsPanX, panY: dsPanY }); }
       return;
     }
     const el = outerRef.current; if (!el) return;
@@ -504,7 +594,7 @@ function Model3DViewer() {
               <span className="text-gray-400 text-xs block mb-1.5">Palette de couleurs</span>
               <div className="flex flex-wrap gap-1.5">
                 {Object.entries(COLORMAPS).map(([k, v]) => (
-                  <button key={k} onClick={() => setDcm(k)} className={`px-2 py-1 rounded text-xs font-medium transition-all ${dcm === k ? "bg-cyan-500 text-white" : "bg-anthracite-700 text-gray-300 hover:bg-anthracite-600"}`}>{v.name}</button>
+                  <button key={k} onClick={() => setDcm(k)} className={`px-2 py-2 min-h-11 sm:min-h-0 sm:py-1 rounded text-xs font-medium transition-all ${dcm === k ? "bg-cyan-500 text-white" : "bg-anthracite-700 text-gray-300 hover:bg-anthracite-600"}`}>{v.name}</button>
                 ))}
               </div>
             </div>
@@ -512,7 +602,7 @@ function Model3DViewer() {
               <span className="text-gray-400 text-xs block mb-1.5">Ombrage</span>
               <div className="flex gap-1.5">
                 {SHADING.map(s => (
-                  <button key={s.id} onClick={() => setShd(s.id)} className={`px-2 py-1 rounded text-xs font-medium transition-all ${shd === s.id ? "bg-amber-500 text-white" : "bg-anthracite-700 text-gray-300 hover:bg-anthracite-600"}`}>{s.label}</button>
+                  <button key={s.id} onClick={() => setShd(s.id)} className={`px-2 py-2 min-h-11 sm:min-h-0 sm:py-1 rounded text-xs font-medium transition-all ${shd === s.id ? "bg-amber-500 text-white" : "bg-anthracite-700 text-gray-300 hover:bg-anthracite-600"}`}>{s.label}</button>
                 ))}
               </div>
             </div>
@@ -532,7 +622,7 @@ function Model3DViewer() {
 
       <div className="flex flex-wrap gap-2">
         {MODELS.map(m => (
-          <button key={m.id} onClick={() => { setTab(m.id); setShowVeg(false); }} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${tab === m.id && !isVeg ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/25" : "bg-anthracite-800 border border-anthracite-700 text-gray-300 hover:bg-anthracite-700"}`}>{m.label}</button>
+          <button key={m.id} onClick={() => { setTab(m.id); setShowVeg(false); }} className={`px-3.5 py-2 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-xs font-medium transition-all ${tab === m.id && !isVeg ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/25" : "bg-anthracite-800 border border-anthracite-700 text-gray-300 hover:bg-anthracite-700"}`}>{m.label}</button>
         ))}
       </div>
 
@@ -546,7 +636,7 @@ function Model3DViewer() {
       {showVeg && (
         <div className="flex flex-wrap gap-1.5 mt-2 pl-2">
           {VEG_MODELS.map(v => (
-            <button key={v.id} onClick={() => setTab(v.id)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${tab === v.id ? "bg-green-500 text-white shadow-lg shadow-green-500/25" : "bg-anthracite-800/50 border border-anthracite-700 text-gray-400 hover:bg-anthracite-700"}`}>{v.label}</button>
+            <button key={v.id} onClick={() => setTab(v.id)} className={`px-2.5 py-2 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-xs font-medium transition-all ${tab === v.id ? "bg-green-500 text-white shadow-lg shadow-green-500/25" : "bg-anthracite-800/50 border border-anthracite-700 text-gray-400 hover:bg-anthracite-700"}`}>{v.label}</button>
           ))}
           <button onClick={e => { e.stopPropagation(); setShowVegInfo(true); }} className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-all bg-anthracite-800/50 border border-anthracite-700 text-gray-400 hover:bg-anthracite-700 hover:text-white" title="En savoir plus sur les algorithmes">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>
@@ -617,7 +707,7 @@ function SolarVideoViewer() {
       </div>
       <div className="flex flex-wrap gap-2">
         {SOLAR_TABS.map(t => (
-          <button key={t.id} onClick={() => setActive(t.id)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${active === t.id ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/25" : "bg-anthracite-800 border border-anthracite-700 text-gray-300 hover:bg-anthracite-700"}`}>{t.label}</button>
+          <button key={t.id} onClick={() => setActive(t.id)} className={`px-3.5 py-2 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-xs font-medium transition-all ${active === t.id ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/25" : "bg-anthracite-800 border border-anthracite-700 text-gray-300 hover:bg-anthracite-700"}`}>{t.label}</button>
         ))}
       </div>
     </div>
@@ -643,7 +733,7 @@ function PdfViewer() {
       </div>
       <div className="flex flex-wrap gap-2">
         {REPORTS.map(r => (
-          <button key={r.id} onClick={() => setActive(r.id)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${active === r.id ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/25" : "bg-anthracite-800 border border-anthracite-700 text-gray-300 hover:bg-anthracite-700"}`}>{r.label}</button>
+          <button key={r.id} onClick={() => setActive(r.id)} className={`px-3.5 py-2 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-xs font-medium transition-all ${active === r.id ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/25" : "bg-anthracite-800 border border-anthracite-700 text-gray-300 hover:bg-anthracite-700"}`}>{r.label}</button>
         ))}
       </div>
     </div>
@@ -658,7 +748,7 @@ function MesuresViewer() {
     <div className="space-y-3 bg-anthracite-900 rounded-2xl border border-anthracite-700 p-3">
       <div className="flex flex-wrap gap-2">
         {MES_TABS.map(t => (
-          <button key={t.id} onClick={() => { setMode(mode === t.id ? "" : t.id); setSel(null); }} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${mode === t.id ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/25" : "bg-anthracite-800 border border-anthracite-700 text-gray-300 hover:bg-anthracite-700"}`}>{t.label}</button>
+          <button key={t.id} onClick={() => { setMode(mode === t.id ? "" : t.id); setSel(null); }} className={`px-3.5 py-2 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-xs font-medium transition-all ${mode === t.id ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/25" : "bg-anthracite-800 border border-anthracite-700 text-gray-300 hover:bg-anthracite-700"}`}>{t.label}</button>
         ))}
       </div>
       {mode === "mesures3d" && (
